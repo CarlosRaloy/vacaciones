@@ -9,13 +9,23 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .models import VacationRequest
+from .services import can_request_full_day, can_request_partial, get_balance
+
+
+def _is_admin(user) -> bool:
+    profile = getattr(user, 'profile', None)
+    return bool(getattr(profile, 'is_admin', False)) or user.is_superuser
 
 
 def _is_hr(user) -> bool:
+    if _is_admin(user):
+        return True
     return bool(getattr(getattr(user, 'profile', None), 'is_hr', False))
 
 
 def _is_leader(user) -> bool:
+    if _is_admin(user):
+        return True
     return bool(getattr(getattr(user, 'profile', None), 'is_leader', False))
 
 
@@ -58,13 +68,19 @@ def calendar_view(request):
     profile = getattr(request.user, 'profile', None)
     boss = getattr(profile, 'boss', None) if profile else None
     employees = []
+    is_admin = _is_admin(request.user)
     if _is_leader(request.user) or _is_hr(request.user):
         employees = User.objects.exclude(pk=request.user.pk).order_by('first_name', 'username')
+
+    balance = get_balance(request.user)
+
     return render(request, 'vacations/calendar.html', {
         'is_hr': _is_hr(request.user),
         'is_leader': _is_leader(request.user),
+        'is_admin': is_admin,
         'boss': boss,
         'employees': employees,
+        'balance': balance,
     })
 
 
@@ -117,6 +133,9 @@ def events_json(request):
                 'origin': r.origin,
                 'employee': r.employee.get_full_name() or r.employee.username,
                 'is_mine': r.employee_id == request.user.id,
+                'captured_by': (
+                    r.captured_by.get_full_name() or r.captured_by.username
+                ) if r.captured_by_id else '',
             },
         })
     return JsonResponse({'events': events})
@@ -126,6 +145,7 @@ def events_json(request):
 @require_POST
 def create_request(request):
     as_leader = request.POST.get('as_leader') == '1'
+    as_hr = request.POST.get('as_hr') == '1'
     kind = request.POST.get('kind')
     if kind not in dict(VacationRequest.Kind.choices):
         return JsonResponse({'success': False, 'message': 'Tipo inválido.'}, status=400)
@@ -151,19 +171,63 @@ def create_request(request):
 
     reason = request.POST.get('reason', '').strip()
 
+    # Determinar trabajador objetivo y privilegios
+    is_admin = _is_admin(request.user)
+    captured_by = request.user
+
     if as_leader:
         if not _is_leader(request.user):
-            return HttpResponseForbidden('Solo líderes.')
+            return HttpResponseForbidden('Solo líderes o admin.')
         emp_id = request.POST.get('employee_id')
         employee = get_object_or_404(User, pk=emp_id)
+        # Validar saldo del trabajador (a menos que sea admin)
+        if not is_admin:
+            ok, msg = (
+                can_request_full_day(employee) if kind == VacationRequest.Kind.FULL_DAY
+                else can_request_partial(employee)
+            )
+            if not ok:
+                return JsonResponse({'success': False, 'message': msg}, status=400)
         req = VacationRequest.objects.create(
             employee=employee, kind=kind, partial_type=partial_type,
             date=d, event_time=event_time, reason=reason,
             status=VacationRequest.Status.PENDING_HR,
             origin=VacationRequest.Origin.LEADER,
             leader_acted_by=request.user, leader_acted_at=timezone.now(),
+            captured_by=captured_by,
+        )
+    elif as_hr:
+        # RH (o admin) captura a nombre del trabajador, pero NO firma por el líder.
+        if not _is_hr(request.user):
+            return HttpResponseForbidden('Solo RH o admin.')
+        emp_id = request.POST.get('employee_id')
+        employee = get_object_or_404(User, pk=emp_id)
+        if not is_admin:
+            ok, msg = (
+                can_request_full_day(employee) if kind == VacationRequest.Kind.FULL_DAY
+                else can_request_partial(employee)
+            )
+            if not ok:
+                return JsonResponse({'success': False, 'message': msg}, status=400)
+        emp_profile = getattr(employee, 'profile', None)
+        leader = getattr(emp_profile, 'boss', None) if emp_profile else None
+        req = VacationRequest.objects.create(
+            employee=employee, kind=kind, partial_type=partial_type,
+            date=d, event_time=event_time, reason=reason,
+            status=VacationRequest.Status.PENDING_LEADER,
+            origin=VacationRequest.Origin.EMPLOYEE,
+            requested_to_leader=leader,
+            captured_by=captured_by,
         )
     else:
+        # Trabajador (o admin para sí mismo)
+        if not is_admin:
+            ok, msg = (
+                can_request_full_day(request.user) if kind == VacationRequest.Kind.FULL_DAY
+                else can_request_partial(request.user)
+            )
+            if not ok:
+                return JsonResponse({'success': False, 'message': msg}, status=400)
         profile = getattr(request.user, 'profile', None)
         leader = getattr(profile, 'boss', None) if profile else None
         req = VacationRequest.objects.create(
@@ -172,6 +236,7 @@ def create_request(request):
             status=VacationRequest.Status.PENDING_LEADER,
             origin=VacationRequest.Origin.EMPLOYEE,
             requested_to_leader=leader,
+            captured_by=captured_by,
         )
     return JsonResponse({'success': True, 'id': req.id, 'message': 'Solicitud registrada.'})
 
@@ -247,7 +312,7 @@ def hr_act(request, pk):
 def cancel_request(request, pk):
     """
     Trabajador (dueño): solo si la fecha aún no llegó.
-    Líder o RH: en cualquier momento, incluso aprobada.
+    Líder, RH o admin: en cualquier momento, incluso aprobada.
     """
     req = get_object_or_404(VacationRequest, pk=pk)
     user = request.user

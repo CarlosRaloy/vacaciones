@@ -37,8 +37,10 @@ class AreasUserModel(models.Model):
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     level = models.SmallIntegerField(default=0) # Nivel de usuario
+    hiring_date = models.DateField(blank=True, null=True) # Fecha de ingreso
+    days_vacations = models.IntegerField(blank=True, null=True) # Dias de vacaciones 
     payroll_number = models.CharField(max_length=100, blank=True, null=True) # Numero de nomina
-    position = models.ForeignKey(PositionUserModel, on_delete=models.SET_NULL, blank=True, null=True)
+    position = models.ForeignKey(PositionUserModel, on_delete=models.SET_NULL, blank=True, null=True) # Posicion
     area = models.ForeignKey(AreasUserModel, on_delete=models.SET_NULL, blank=True, null=True) # Departamentos
     boss = models.ForeignKey(
         User, on_delete=models.SET_NULL, blank=True, null=True,

@@ -1,30 +1,90 @@
 # Python
-**/__pycache__/
+__pycache__/
 *.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.Python
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+MANIFEST
 
-# Virtualenv
+# Virtual environments
 venv/
 .venv/
 env/
-
-# Django
-db.sqlite3
-staticfiles/
-media/
-
-# Logs
-*.log
-err.log
-out.log
-
-# IDE
-.idea/
-
-# Env
 .env
+ENV/
+env.bak/
+venv.bak/
 
- CLAUDE.md
+# Django migrations (proyecto local)
+aplications/*/migrations/*.py
+aplications/*/migrations/*.pyc
+!aplications/*/migrations/__init__.py
 
-*/migrations/*.py
-!vacaciones/aplications/users/migrations/__init__.py
+# Django runtime
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
 
+# PyCharm / JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# VS Code
+.vscode/
+*.code-workspace
+.history/
+
+# Editores / sistemas operativos
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+
+# Pytest / coverage / tooling
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+
+# Jupyter
+.ipynb_checkpoints
+
+# Secretos / credenciales
+*.pem
+*.key
+secrets.json

@@ -57,6 +57,12 @@ class VacationRequest(models.Model):
     )
     cancelled_at = models.DateTimeField(blank=True, null=True)
 
+    captured_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, blank=True, null=True,
+        related_name='vacation_requests_captured',
+        help_text='Quién registró físicamente la solicitud (trabajador, líder, RH o admin).',
+    )
+
     created = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
 

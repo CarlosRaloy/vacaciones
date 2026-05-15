@@ -2,122 +2,552 @@
 {% load static %}
 
 {% block head_content %}
-<title>Vacaciones</title>
+<title>Vacaciones · Calendario</title>
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
 <style>
-  .vac-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:14px; margin-bottom:18px; }
-  .vac-card { border-radius:14px; padding:18px; color:#fff; box-shadow:0 6px 18px rgba(0,0,0,.08); position:relative; overflow:hidden; }
-  .vac-card .label { font-size:12px; opacity:.85; text-transform:uppercase; letter-spacing:.05em; }
-  .vac-card .value { font-size:30px; font-weight:700; line-height:1; margin-top:6px; }
-  .vac-card .sub { font-size:12px; opacity:.85; margin-top:6px; }
-  .vac-card.allowance { background:linear-gradient(135deg,#6366f1,#8b5cf6); }
-  .vac-card.remaining { background:linear-gradient(135deg,#10b981,#059669); }
-  .vac-card.used      { background:linear-gradient(135deg,#f59e0b,#d97706); }
-  .vac-card.partial   { background:linear-gradient(135deg,#0ea5e9,#0369a1); }
-  .vac-legend { display:flex; gap:14px; flex-wrap:wrap; margin:10px 0 16px; font-size:12px; }
-  .vac-legend .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; }
-  .vac-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
-  #calendar { background:#fff; border-radius:14px; padding:14px; box-shadow:0 6px 18px rgba(0,0,0,.06); }
-  .fc .fc-toolbar-title { font-size:1.2rem; }
-  .modal-pretty .modal-content { border-radius:14px; border:0; }
+  /* ──────────────────── Sistema de diseño macOS ──────────────────── */
+  :root {
+    --mac-bg:       #f2f2f7;
+    --mac-panel:    rgba(255,255,255,0.72);
+    --mac-panel-2:  rgba(255,255,255,0.92);
+    --mac-stroke:   rgba(0,0,0,0.08);
+    --mac-stroke-2: rgba(0,0,0,0.04);
+    --mac-text:     #1d1d1f;
+    --mac-text-2:   #6e6e73;
+    --mac-text-3:   #8e8e93;
+    --mac-accent:   #007aff;
+    --mac-accent-bg: rgba(0,122,255,.12);
+    --mac-red:      #ff3b30;
+    --mac-orange:   #ff9500;
+    --mac-yellow:   #ffcc00;
+    --mac-green:    #34c759;
+    --mac-blue:     #3b82f6;
+    --mac-gray:     #aeaeb2;
+    --mac-shadow:   0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06);
+    --mac-shadow-lg:0 4px 12px rgba(0,0,0,.06), 0 24px 48px rgba(0,0,0,.12);
+    --mac-radius:   14px;
+    --mac-radius-sm:10px;
+  }
+
+  /* Oculta los botoncitos del panel base para tener pantalla limpia */
+  .panel.panel-inverse > .panel-heading { display:none; }
+  .panel.panel-inverse > .panel-body { padding:0; background:transparent; }
+  .panel.panel-inverse { background:transparent; border:0; box-shadow:none; }
+  #content.content { background:var(--mac-bg); }
+  .page-header { display:none; }
+
+  .mac-cal {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+                 'Inter', 'Poppins', system-ui, sans-serif;
+    color: var(--mac-text);
+    background: var(--mac-bg);
+    min-height: calc(100vh - 60px);
+    padding: 18px;
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 960px) {
+    .mac-cal { grid-template-columns: 1fr; }
+  }
+
+  /* ──────────────────── Sidebar ──────────────────── */
+  .mac-sidebar {
+    background: var(--mac-panel);
+    border: 1px solid var(--mac-stroke);
+    border-radius: var(--mac-radius);
+    padding: 16px;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    box-shadow: var(--mac-shadow);
+    height: fit-content;
+    position: sticky; top: 78px;
+  }
+  .mac-greet { font-size: 12px; color: var(--mac-text-3); text-transform: uppercase; letter-spacing: .06em; }
+  .mac-name  { font-size: 15px; font-weight: 600; margin: 2px 0 14px; }
+
+  .mac-balance {
+    background: linear-gradient(135deg, #007aff 0%, #5e5ce6 100%);
+    color: #fff;
+    border-radius: var(--mac-radius-sm);
+    padding: 14px 16px;
+    box-shadow: 0 6px 16px rgba(0,122,255,.25);
+    margin-bottom: 14px;
+  }
+  .mac-balance .lbl { font-size: 11px; opacity: .9; text-transform: uppercase; letter-spacing: .06em; }
+  .mac-balance .val { font-size: 34px; font-weight: 700; line-height: 1; margin-top: 6px; }
+  .mac-balance .unit { font-size: 13px; opacity: .85; margin-left: 4px; }
+  .mac-balance .sub { font-size: 11px; opacity: .85; margin-top: 8px; }
+
+  .mac-stats { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .mac-stat {
+    background: var(--mac-panel-2);
+    border: 1px solid var(--mac-stroke-2);
+    border-radius: var(--mac-radius-sm);
+    padding: 10px 12px;
+  }
+  .mac-stat .lbl { font-size: 10px; color: var(--mac-text-3); text-transform: uppercase; letter-spacing: .06em; }
+  .mac-stat .val { font-size: 20px; font-weight: 600; color: var(--mac-text); margin-top: 2px; }
+
+  .mac-partials {
+    background: var(--mac-panel-2);
+    border: 1px solid var(--mac-stroke-2);
+    border-radius: var(--mac-radius-sm);
+    padding: 12px;
+    margin-bottom: 14px;
+  }
+  .mac-partials .head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .mac-partials .ttl { font-size: 12px; font-weight: 600; color: var(--mac-text-2); }
+  .mac-partials .pill { font-size: 11px; background: var(--mac-accent-bg); color: var(--mac-accent); padding: 2px 8px; border-radius: 999px; }
+  .mac-dots { display:flex; gap:6px; margin: 4px 0 2px; }
+  .mac-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid var(--mac-stroke);
+    background: transparent;
+    transition: all .2s ease;
+  }
+  .mac-dot.on { background: var(--mac-accent); border-color: var(--mac-accent); box-shadow: 0 2px 6px var(--mac-accent-bg); }
+  .mac-dot.pending { background: repeating-linear-gradient(45deg, var(--mac-accent) 0 3px, #fff 3px 6px); border-color: var(--mac-accent); opacity:.7; }
+  .mac-partials .hint { font-size: 11px; color: var(--mac-text-3); margin-top: 6px; }
+
+  .mac-section-title {
+    font-size: 11px; font-weight: 600; color: var(--mac-text-3);
+    text-transform: uppercase; letter-spacing: .07em;
+    margin: 14px 0 8px;
+  }
+  .mac-filter { display:flex; align-items:center; gap:8px; font-size:13px; padding: 4px 0; cursor:pointer; user-select:none; }
+  .mac-filter input { accent-color: var(--mac-accent); }
+  .mac-filter .swatch { width:10px; height:10px; border-radius:3px; }
+
+  .mac-scope {
+    margin-top: 6px;
+    width: 100%;
+    background: var(--mac-panel-2);
+    border: 1px solid var(--mac-stroke);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+    color: var(--mac-text);
+  }
+
+  /* ──────────────────── Main ──────────────────── */
+  .mac-main {
+    background: var(--mac-panel-2);
+    border: 1px solid var(--mac-stroke);
+    border-radius: var(--mac-radius);
+    box-shadow: var(--mac-shadow);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+
+  .mac-toolbar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 18px;
+    background: var(--mac-panel);
+    border-bottom: 1px solid var(--mac-stroke);
+    backdrop-filter: blur(20px) saturate(180%);
+  }
+  .mac-title { font-size: 22px; font-weight: 700; letter-spacing: -.01em; color: var(--mac-text); margin: 0; text-transform: capitalize; }
+  .mac-title small { display:block; font-size:11px; font-weight: 500; color: var(--mac-text-3); margin-top:2px; text-transform: uppercase; letter-spacing:.08em; }
+
+  .mac-seg {
+    display: inline-flex;
+    background: rgba(118,118,128,.12);
+    border-radius: 8px;
+    padding: 2px;
+  }
+  .mac-seg button {
+    border: 0; background: transparent;
+    padding: 5px 14px;
+    font-size: 13px; font-weight: 500;
+    color: var(--mac-text);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .15s ease;
+  }
+  .mac-seg button.active {
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 1px 4px rgba(0,0,0,.08);
+  }
+  .mac-seg button:not(.active):hover { background: rgba(255,255,255,.5); }
+
+  .mac-nav { display: inline-flex; gap: 6px; justify-self: end; align-items:center; }
+  .mac-btn {
+    border: 1px solid var(--mac-stroke);
+    background: #fff;
+    color: var(--mac-text);
+    padding: 6px 12px;
+    font-size: 13px; font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .15s ease;
+    display: inline-flex; align-items:center; gap:6px;
+  }
+  .mac-btn:hover { background: #f5f5f7; }
+  .mac-btn:active { transform: scale(.97); }
+  .mac-btn.primary { background: var(--mac-accent); color: #fff; border-color: var(--mac-accent); box-shadow: 0 2px 6px rgba(0,122,255,.25); }
+  .mac-btn.primary:hover { background: #0066d9; }
+  .mac-btn.icon { padding: 6px 10px; }
+
+  /* ──────────────────── FullCalendar overrides ──────────────────── */
+  #calendar { padding: 8px 12px 12px; background: #fff; flex: 1; }
+
+  .fc { font-family: inherit; }
+  .fc-theme-standard td, .fc-theme-standard th { border-color: rgba(0,0,0,.05); }
+  .fc-theme-standard .fc-scrollgrid { border-color: rgba(0,0,0,.05); border-radius: 10px; overflow:hidden; }
+  .fc .fc-col-header-cell-cushion {
+    padding: 10px 6px;
+    font-size: 11px; font-weight: 600;
+    color: var(--mac-text-3);
+    text-transform: uppercase; letter-spacing: .07em;
+  }
+  .fc .fc-daygrid-day-number {
+    padding: 6px 8px;
+    font-size: 13px; font-weight: 500;
+    color: var(--mac-text);
+  }
+  .fc .fc-day-today { background: rgba(0,122,255,.04) !important; }
+  .fc .fc-day-today .fc-daygrid-day-number {
+    color: #fff;
+    background: var(--mac-red);
+    border-radius: 50%;
+    width: 26px; height: 26px;
+    line-height: 14px;
+    text-align: center;
+    margin: 6px 6px 0 auto;
+    display: inline-block;
+    font-weight: 600;
+  }
+  .fc .fc-day-other .fc-daygrid-day-number { color: var(--mac-text-3); opacity: .55; }
+
+  .fc-daygrid-event {
+    border: 0 !important;
+    border-radius: 999px !important;
+    padding: 2px 8px !important;
+    margin: 1px 4px !important;
+    font-size: 11.5px;
+    font-weight: 500;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .fc-daygrid-event:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(0,0,0,.15);
+    cursor: pointer;
+  }
+  .fc-daygrid-event .fc-event-title { font-weight: 500; }
+
+  .fc-list-event-dot { display: none; }
+  .fc-list-day-cushion { background: var(--mac-panel) !important; }
+
+  /* ──────────────────── Sheet modal (nueva solicitud) ──────────────────── */
+  .mac-sheet.modal { backdrop-filter: blur(8px); }
+  .mac-sheet .modal-dialog { max-width: 460px; margin-top: 80px; }
+  .mac-sheet .modal-content {
+    border: 0;
+    border-radius: 14px;
+    box-shadow: var(--mac-shadow-lg);
+    overflow: hidden;
+  }
+  .mac-sheet .modal-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--mac-stroke);
+    background: var(--mac-panel);
+  }
+  .mac-sheet .modal-title { font-size: 15px; font-weight: 600; color: var(--mac-text); }
+  .mac-sheet .modal-body { padding: 16px 18px; background: #fff; }
+  .mac-sheet .modal-footer { padding: 12px 18px; border-top: 1px solid var(--mac-stroke); background: var(--mac-panel); }
+
+  .mac-field { margin-bottom: 12px; }
+  .mac-field label { font-size: 12px; font-weight: 600; color: var(--mac-text-2); display:block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+  .mac-field input, .mac-field select, .mac-field textarea {
+    width: 100%;
+    border: 1px solid var(--mac-stroke);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--mac-text);
+    background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .mac-field input:focus, .mac-field select:focus, .mac-field textarea:focus {
+    outline: 0;
+    border-color: var(--mac-accent);
+    box-shadow: 0 0 0 3px var(--mac-accent-bg);
+  }
+  .mac-hint { font-size: 11px; color: var(--mac-text-3); margin-top: 4px; }
+  .mac-hint.warn { color: var(--mac-orange); }
+
+  .mac-kind-toggle { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .mac-kind-toggle label {
+    border: 1px solid var(--mac-stroke);
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    text-align: center;
+    transition: all .15s;
+    background: #fff;
+  }
+  .mac-kind-toggle label .ico { font-size: 20px; display:block; margin-bottom: 4px; }
+  .mac-kind-toggle label .ttl { font-size: 13px; font-weight: 600; color: var(--mac-text); }
+  .mac-kind-toggle label .desc { font-size: 11px; color: var(--mac-text-3); margin-top: 2px; }
+  .mac-kind-toggle input { display: none; }
+  .mac-kind-toggle input:checked + label { border-color: var(--mac-accent); background: var(--mac-accent-bg); }
+
+  .mac-on-behalf {
+    margin-top: 8px; padding: 10px;
+    background: rgba(255,149,0,.08);
+    border: 1px solid rgba(255,149,0,.25);
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .mac-on-behalf summary { cursor: pointer; font-weight: 600; color: var(--mac-orange); }
+  .mac-on-behalf[open] summary { margin-bottom: 8px; }
+
+  /* ──────────────────── Inspector lateral ──────────────────── */
+  .mac-inspector {
+    position: fixed; top: 0; right: 0; height: 100vh;
+    width: 380px; max-width: 90vw;
+    background: var(--mac-panel-2);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-left: 1px solid var(--mac-stroke);
+    box-shadow: -10px 0 30px rgba(0,0,0,.08);
+    transform: translateX(100%);
+    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    z-index: 1050;
+    display: flex; flex-direction: column;
+  }
+  .mac-inspector.open { transform: translateX(0); }
+  .mac-inspector header {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--mac-stroke);
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .mac-inspector header h3 { font-size: 15px; font-weight: 600; margin: 0; }
+  .mac-inspector .close-x {
+    border: 0; background: transparent;
+    width: 28px; height: 28px; border-radius: 50%;
+    cursor: pointer; font-size: 14px;
+    display:flex; align-items:center; justify-content:center;
+    color: var(--mac-text-2);
+  }
+  .mac-inspector .close-x:hover { background: rgba(0,0,0,.06); }
+  .mac-inspector .body { padding: 18px; flex: 1; overflow-y: auto; }
+  .mac-inspector .row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--mac-stroke-2); font-size: 13px; }
+  .mac-inspector .row .k { color: var(--mac-text-3); font-weight: 500; }
+  .mac-inspector .row .v { color: var(--mac-text); font-weight: 500; text-align: right; max-width: 60%; }
+  .mac-inspector .status-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .mac-inspector footer {
+    padding: 14px 18px;
+    border-top: 1px solid var(--mac-stroke);
+    display: flex; gap: 8px; justify-content: flex-end;
+  }
+  .mac-btn.danger { background: var(--mac-red); color: #fff; border-color: var(--mac-red); }
+  .mac-btn.danger:hover { background: #d70015; }
+
+  .mac-scrim {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.18);
+    opacity: 0; pointer-events: none;
+    transition: opacity .25s;
+    z-index: 1049;
+  }
+  .mac-scrim.open { opacity: 1; pointer-events: auto; }
+
+  /* Animación entrada */
+  @keyframes mac-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .mac-cal > * { animation: mac-fade-in .25s ease both; }
 </style>
 {% endblock %}
 
-{% block panel_page %}Vacaciones <small>calendario y solicitudes</small>{% endblock %}
-{% block panel_title %}Mi calendario{% endblock %}
+{% block panel_page %}{% endblock %}
+{% block panel_title %}{% endblock %}
 
 {% block content %}
-<div class="vac-toolbar">
-  <div class="vac-legend">
-    <span><span class="dot" style="background:#f59e0b"></span>Pendiente líder</span>
-    <span><span class="dot" style="background:#3b82f6"></span>Pendiente RH</span>
-    <span><span class="dot" style="background:#10b981"></span>Aprobada</span>
-    <span><span class="dot" style="background:#ef4444"></span>Rechazada</span>
-    <span><span class="dot" style="background:#9ca3af"></span>Cancelada</span>
-  </div>
-  <div>
-    {% if is_leader or is_hr %}
-    <select id="scope" class="form-control form-control-sm" style="display:inline-block; width:auto;">
+<div class="mac-cal">
+  <!-- ──────────────────── Sidebar ──────────────────── -->
+  <aside class="mac-sidebar">
+    <div class="mac-greet">Hola</div>
+    <div class="mac-name">{{ request.user.get_full_name|default:request.user.username }}</div>
+
+    <div class="mac-balance">
+      <div class="lbl">Saldo este ciclo</div>
+      <div class="val">{{ balance.remaining }}<span class="unit">/ {{ balance.allowance }} días</span></div>
+      <div class="sub">Reinicia el {{ balance.cycle_end|date:"d M Y" }}</div>
+    </div>
+
+    <div class="mac-stats">
+      <div class="mac-stat">
+        <div class="lbl">Usados</div>
+        <div class="val">{{ balance.used }}</div>
+      </div>
+      <div class="mac-stat">
+        <div class="lbl">Pendientes</div>
+        <div class="val">{{ balance.partials_pending }}</div>
+      </div>
+    </div>
+
+    <div class="mac-partials">
+      <div class="head">
+        <span class="ttl">Parciales acumulados</span>
+        <span class="pill">{{ balance.partials_remainder }}/3</span>
+      </div>
+      <div class="mac-dots" id="partials-dots">
+        {% for i in "123" %}
+          <span class="mac-dot{% if forloop.counter <= balance.partials_remainder %} on{% endif %}"></span>
+        {% endfor %}
+      </div>
+      <div class="hint">3 parciales = 1 día completo de vacaciones.</div>
+    </div>
+
+    <div class="mac-section-title">Filtrar por estado</div>
+    <label class="mac-filter"><input type="checkbox" data-status="PENDING_LEADER" checked><span class="swatch" style="background:#ff9500"></span> Pendiente líder</label>
+    <label class="mac-filter"><input type="checkbox" data-status="PENDING_HR" checked><span class="swatch" style="background:#3b82f6"></span> Pendiente RH</label>
+    <label class="mac-filter"><input type="checkbox" data-status="APPROVED" checked><span class="swatch" style="background:#34c759"></span> Aprobada</label>
+    <label class="mac-filter"><input type="checkbox" data-status="REJECTED"><span class="swatch" style="background:#ff3b30"></span> Rechazada</label>
+    <label class="mac-filter"><input type="checkbox" data-status="CANCELLED"><span class="swatch" style="background:#aeaeb2"></span> Cancelada</label>
+
+    {% if is_leader or is_hr or is_admin %}
+    <div class="mac-section-title">Vista</div>
+    <select id="scope" class="mac-scope">
       <option value="mine">Solo mías</option>
       <option value="all">Toda la organización</option>
     </select>
     {% endif %}
-    <button id="btn-new" class="btn btn-success btn-sm"><i class="fa fa-plus"></i> Nueva solicitud</button>
-  </div>
+  </aside>
+
+  <!-- ──────────────────── Main ──────────────────── -->
+  <section class="mac-main">
+    <div class="mac-toolbar">
+      <h1 class="mac-title" id="cal-title">
+        <span id="cal-title-text">…</span>
+        <small>Calendario de vacaciones</small>
+      </h1>
+      <div class="mac-seg" id="view-switch">
+        <button data-view="dayGridMonth" class="active">Mes</button>
+        <button data-view="listMonth">Lista</button>
+      </div>
+      <div class="mac-nav">
+        <button class="mac-btn icon" id="nav-prev" title="Anterior"><i class="fa fa-chevron-left"></i></button>
+        <button class="mac-btn" id="nav-today">Hoy</button>
+        <button class="mac-btn icon" id="nav-next" title="Siguiente"><i class="fa fa-chevron-right"></i></button>
+        <button class="mac-btn primary" id="btn-new"><i class="fa fa-plus"></i> Nueva</button>
+      </div>
+    </div>
+    <div id="calendar"></div>
+  </section>
 </div>
 
-<div id="calendar"></div>
-
-<!-- Modal nueva solicitud -->
-<div class="modal fade modal-pretty" id="newModal" tabindex="-1" role="dialog">
+<!-- ──────────────────── Sheet: nueva solicitud ──────────────────── -->
+<div class="modal fade mac-sheet" id="newModal" tabindex="-1" role="dialog">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><i class="fa-solid fa-umbrella-beach"></i> Nueva solicitud</h5>
-        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h5 class="modal-title">Nueva solicitud</h5>
+        <button type="button" class="close-x" data-dismiss="modal"><i class="fa fa-times"></i></button>
       </div>
       <form id="newForm">
         {% csrf_token %}
         <div class="modal-body">
-          <div class="form-group">
+          <div class="mac-field">
             <label>Tipo</label>
-            <select name="kind" id="f-kind" class="form-control" required>
-              <option value="FULL_DAY">🌴 Día completo (descuenta del saldo)</option>
-              <option value="PARTIAL">⏱️ Acumulable (llegada tarde / salida)</option>
+            <div class="mac-kind-toggle">
+              <input type="radio" name="kind" id="k-full" value="FULL_DAY" checked>
+              <label for="k-full"><span class="ico">🌴</span><span class="ttl">Día completo</span><span class="desc">Descuenta del saldo</span></label>
+              <input type="radio" name="kind" id="k-partial" value="PARTIAL">
+              <label for="k-partial"><span class="ico">⏱️</span><span class="ttl">Permiso</span><span class="desc">3 = 1 día</span></label>
+            </div>
+          </div>
+
+          <div class="mac-field" id="grp-partial" style="display:none;">
+            <label>Tipo de permiso</label>
+            <select name="partial_type" id="f-partial-type">
+              <option value="LATE">Llegada tarde (08:00–11:00)</option>
+              <option value="EARLY_LEAVE">Salida anticipada (14:00–18:00)</option>
             </select>
           </div>
-          <div class="form-group" id="grp-partial" style="display:none;">
-            <label>Tipo de acumulable</label>
-            <select name="partial_type" id="f-partial-type" class="form-control">
-              <option value="LATE">Llegada tarde</option>
-              <option value="EARLY_LEAVE">Salida en horas de trabajo</option>
-            </select>
-            <small class="text-muted">Cada 3 acumulables descuentan 1 día. Horario: 08:00–18:00.</small>
-          </div>
-          <div class="form-group" id="grp-time" style="display:none;">
+
+          <div class="mac-field" id="grp-time" style="display:none;">
             <label id="lbl-time">Hora</label>
-            <input type="time" name="event_time" id="f-time" class="form-control" step="300">
-            <small class="text-muted" id="hint-time"></small>
+            <input type="time" name="event_time" id="f-time" step="300">
+            <div class="mac-hint" id="hint-time"></div>
           </div>
-          <div class="form-group">
+
+          <div class="mac-field">
             <label>Fecha</label>
-            <input type="date" name="date" id="f-date" class="form-control" required>
+            <input type="date" name="date" id="f-date" required>
           </div>
-          <div class="form-group" id="grp-leader">
+
+          <div class="mac-field" id="grp-leader">
             {% if boss %}
-              <small class="text-muted">Tu solicitud se enviará a tu líder: <b>{{ boss.get_full_name|default:boss.username }}</b>.</small>
+              <div class="mac-hint">Se enviará a tu líder: <b>{{ boss.get_full_name|default:boss.username }}</b>.</div>
             {% else %}
-              <small class="text-warning">Aún no tienes un líder asignado. La solicitud quedará pendiente hasta que RH la procese.</small>
+              <div class="mac-hint warn">⚠️ Aún no tienes un líder asignado. La solicitud quedará pendiente.</div>
             {% endif %}
           </div>
-          {% if is_leader %}
-          <hr>
-          <div class="form-group">
-            <label><input type="checkbox" id="as-leader" name="as_leader" value="1"> Registrar como líder (para otro trabajador, va directo a RH)</label>
-          </div>
-          <div class="form-group" id="grp-employee" style="display:none;">
-            <label>Trabajador</label>
-            <select name="employee_id" class="form-control">
-              <option value="">Selecciona…</option>
-              {% for e in employees %}
-                <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
-              {% endfor %}
-            </select>
-          </div>
+
+          {% if is_leader or is_hr or is_admin %}
+          <details class="mac-on-behalf" id="behalf-block">
+            <summary>Registrar a nombre de otro trabajador</summary>
+            <div style="padding-top:8px;">
+              {% if is_leader %}
+              <div class="mac-field">
+                <label class="mac-filter"><input type="radio" name="behalf_mode" value="as_leader" checked> Como líder (firma líder, va a RH)</label>
+                {% if is_hr or is_admin %}
+                <label class="mac-filter"><input type="radio" name="behalf_mode" value="as_hr"> Como RH (sigue requiriendo firma del líder)</label>
+                {% endif %}
+              </div>
+              {% elif is_hr or is_admin %}
+              <input type="hidden" name="behalf_mode" value="as_hr">
+              <div class="mac-hint">Como RH: la solicitud sigue requiriendo la firma del líder del trabajador.</div>
+              {% endif %}
+              <div class="mac-field" style="margin-top:8px;">
+                <label>Trabajador</label>
+                <select name="employee_id" id="f-employee">
+                  <option value="">Selecciona…</option>
+                  {% for e in employees %}
+                    <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </details>
           {% endif %}
-          <div class="form-group">
+
+          <div class="mac-field">
             <label>Motivo (opcional)</label>
-            <textarea name="reason" class="form-control" rows="2"></textarea>
+            <textarea name="reason" rows="2" placeholder="Cita médica, asuntos personales…"></textarea>
           </div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-success">Enviar</button>
+          <button type="button" class="mac-btn" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="mac-btn primary">Enviar solicitud</button>
         </div>
       </form>
     </div>
   </div>
 </div>
+
+<!-- ──────────────────── Inspector lateral ──────────────────── -->
+<div class="mac-scrim" id="scrim"></div>
+<aside class="mac-inspector" id="inspector">
+  <header>
+    <h3 id="ins-title">Solicitud</h3>
+    <button class="close-x" id="ins-close"><i class="fa fa-times"></i></button>
+  </header>
+  <div class="body" id="ins-body"></div>
+  <footer id="ins-footer"></footer>
+</aside>
 {% endblock %}
 
 {% block scripts %}
@@ -127,45 +557,90 @@
 const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const eventsUrl = "{% url 'vacations:events_json' %}";
 const createUrl = "{% url 'vacations:create' %}";
+const IS_PRIV   = {{ is_leader|yesno:"true,false" }} || {{ is_hr|yesno:"true,false" }} || {{ is_admin|yesno:"true,false" }};
 
 let calendar;
+const statusFilter = new Set(['PENDING_LEADER','PENDING_HR','APPROVED']);
+
 document.addEventListener('DOMContentLoaded', () => {
   const el = document.getElementById('calendar');
   calendar = new FullCalendar.Calendar(el, {
     initialView: 'dayGridMonth',
     locale: 'es',
     height: 'auto',
-    headerToolbar: { left:'prev,next today', center:'title', right:'dayGridMonth,listMonth' },
+    headerToolbar: false,
+    fixedWeekCount: false,
+    dayMaxEvents: 3,
     selectable: true,
     dateClick: info => openNew(info.dateStr),
     events: (info, success, failure) => {
       const scope = (document.getElementById('scope')?.value) || 'mine';
       fetch(`${eventsUrl}?scope=${scope}&start=${info.startStr}&end=${info.endStr}`)
-        .then(r => r.json()).then(d => success(d.events)).catch(failure);
+        .then(r => r.json())
+        .then(d => success(d.events.filter(e => statusFilter.has(e.extendedProps.status))))
+        .catch(failure);
     },
-    eventClick: ev => showEvent(ev.event),
+    eventClick: ev => openInspector(ev.event),
+    datesSet: () => { document.getElementById('cal-title-text').textContent = calendar.view.title; },
   });
   calendar.render();
 
-  document.getElementById('btn-new').addEventListener('click', () => openNew());
-  document.getElementById('f-kind').addEventListener('change', e => {
-    const isPartial = e.target.value === 'PARTIAL';
-    document.getElementById('grp-partial').style.display = isPartial ? '' : 'none';
-    document.getElementById('grp-time').style.display = isPartial ? '' : 'none';
-    if (isPartial) applyTimeBounds();
-  });
-  document.getElementById('f-partial-type').addEventListener('change', applyTimeBounds);
-  const asLead = document.getElementById('as-leader');
-  if (asLead) asLead.addEventListener('change', e => {
-    document.getElementById('grp-employee').style.display = e.target.checked ? '' : 'none';
-    const gl = document.getElementById('grp-leader');
-    if (gl) gl.style.display = e.target.checked ? 'none' : '';
-  });
-  const scopeSel = document.getElementById('scope');
-  if (scopeSel) scopeSel.addEventListener('change', () => calendar.refetchEvents());
+  // Toolbar nav
+  document.getElementById('nav-prev').onclick  = () => calendar.prev();
+  document.getElementById('nav-next').onclick  = () => calendar.next();
+  document.getElementById('nav-today').onclick = () => calendar.today();
+  document.getElementById('btn-new').onclick   = () => openNew();
 
-  document.getElementById('newForm').addEventListener('submit', submitNew);
+  // View switch
+  document.querySelectorAll('#view-switch button').forEach(b => {
+    b.onclick = () => {
+      document.querySelectorAll('#view-switch button').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      calendar.changeView(b.dataset.view);
+    };
+  });
+
+  // Filtros estado
+  document.querySelectorAll('.mac-filter input[data-status]').forEach(cb => {
+    cb.onchange = () => {
+      if (cb.checked) statusFilter.add(cb.dataset.status);
+      else statusFilter.delete(cb.dataset.status);
+      calendar.refetchEvents();
+    };
+  });
+
+  // Form
+  document.querySelectorAll('input[name=kind]').forEach(r => r.onchange = onKindChange);
+  document.getElementById('f-partial-type').onchange = applyTimeBounds;
+  document.getElementById('newForm').onsubmit = submitNew;
+
+  // Scope
+  const scopeSel = document.getElementById('scope');
+  if (scopeSel) scopeSel.onchange = () => calendar.refetchEvents();
+
+  // Inspector close
+  document.getElementById('ins-close').onclick = closeInspector;
+  document.getElementById('scrim').onclick     = closeInspector;
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeInspector();
+    if (e.key === 't' && !isFormActive()) calendar.today();
+    if (e.key === 'ArrowLeft' && !isFormActive())  calendar.prev();
+    if (e.key === 'ArrowRight' && !isFormActive()) calendar.next();
+  });
 });
+
+function isFormActive() {
+  const ae = document.activeElement;
+  return ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT');
+}
+
+function onKindChange() {
+  const kind = document.querySelector('input[name=kind]:checked').value;
+  const isPartial = kind === 'PARTIAL';
+  document.getElementById('grp-partial').style.display = isPartial ? '' : 'none';
+  document.getElementById('grp-time').style.display    = isPartial ? '' : 'none';
+  if (isPartial) applyTimeBounds();
+}
 
 function openNew(dateStr) {
   document.getElementById('f-date').value = dateStr || new Date().toISOString().slice(0,10);
@@ -175,8 +650,8 @@ function openNew(dateStr) {
 function applyTimeBounds() {
   const type = document.getElementById('f-partial-type').value;
   const input = document.getElementById('f-time');
-  const lbl = document.getElementById('lbl-time');
-  const hint = document.getElementById('hint-time');
+  const lbl   = document.getElementById('lbl-time');
+  const hint  = document.getElementById('hint-time');
   if (type === 'LATE') {
     input.min = '08:00'; input.max = '11:00';
     lbl.textContent = 'Hora de llegada';
@@ -185,7 +660,7 @@ function applyTimeBounds() {
   } else {
     input.min = '14:00'; input.max = '18:00';
     lbl.textContent = 'Hora de salida';
-    hint.textContent = 'Entre 14:00 y 18:00 (hasta 4 h antes del fin de jornada).';
+    hint.textContent = 'Entre 14:00 y 18:00.';
     if (!input.value || input.value < '14:00' || input.value > '18:00') input.value = '16:00';
   }
 }
@@ -193,6 +668,11 @@ function applyTimeBounds() {
 function submitNew(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
+  // El backend espera as_leader=1 o as_hr=1; aquí mapeamos behalf_mode → flag
+  const mode = fd.get('behalf_mode');
+  if (mode === 'as_leader') fd.append('as_leader', '1');
+  if (mode === 'as_hr')     fd.append('as_hr', '1');
+  fd.delete('behalf_mode');
   fetch(createUrl, { method:'POST', body: fd, headers:{'X-CSRFToken': csrftoken} })
     .then(r => r.json())
     .then(d => {
@@ -201,43 +681,66 @@ function submitNew(e) {
         e.target.reset();
         document.getElementById('grp-partial').style.display = 'none';
         document.getElementById('grp-time').style.display = 'none';
-        Swal.fire({icon:'success', title:'Solicitud enviada', timer:1500, showConfirmButton:false});
+        Swal.fire({icon:'success', title:'Solicitud enviada', timer:1400, showConfirmButton:false, customClass:{popup:'swal2-rounded'}});
         calendar.refetchEvents();
+        // Refresco saldo (recarga ligera de la página tras 1.4s para evitar otro endpoint)
+        setTimeout(() => location.reload(), 1500);
       } else {
-        Swal.fire({icon:'error', title:'Error', text:d.message || 'No se pudo crear'});
+        Swal.fire({icon:'error', title:'No se pudo crear', text:d.message});
       }
     });
 }
 
-function showEvent(ev) {
+const STATUS_STYLE = {
+  PENDING_LEADER: { bg:'rgba(255,149,0,.15)',  fg:'#b45309' },
+  PENDING_HR:     { bg:'rgba(59,130,246,.15)', fg:'#1d4ed8' },
+  APPROVED:       { bg:'rgba(52,199,89,.15)',  fg:'#15803d' },
+  REJECTED:       { bg:'rgba(255,59,48,.15)',  fg:'#b91c1c' },
+  CANCELLED:      { bg:'rgba(174,174,178,.20)', fg:'#52525b' },
+};
+
+function openInspector(ev) {
   const p = ev.extendedProps;
-  const canCancel = p.is_mine || {{ is_leader|yesno:"true,false" }} || {{ is_hr|yesno:"true,false" }};
-  Swal.fire({
-    title: p.kind_label,
-    html: `
-      <div style="text-align:left;">
-        <p><b>Trabajador:</b> ${p.employee}</p>
-        <p><b>Fecha:</b> ${ev.startStr}</p>
-        <p><b>Estado:</b> ${p.status_label}</p>
-        ${p.partial_label ? `<p><b>Subtipo:</b> ${p.partial_label}</p>` : ''}
-        ${p.event_time ? `<p><b>Hora:</b> ${p.event_time}</p>` : ''}
-        ${p.reason ? `<p><b>Motivo:</b> ${p.reason}</p>` : ''}
-      </div>`,
-    showCancelButton: canCancel && p.status !== 'CANCELLED' && p.status !== 'REJECTED',
-    cancelButtonText: 'Cancelar solicitud',
-    cancelButtonColor: '#ef4444',
-    confirmButtonText: 'Cerrar',
-  }).then(res => {
-    if (res.dismiss === Swal.DismissReason.cancel) cancelReq(ev.id);
-  });
+  const sty = STATUS_STYLE[p.status] || STATUS_STYLE.CANCELLED;
+  document.getElementById('ins-title').textContent = p.kind_label;
+  document.getElementById('ins-body').innerHTML = `
+    <div class="row"><span class="k">Trabajador</span><span class="v">${p.employee}</span></div>
+    <div class="row"><span class="k">Fecha</span><span class="v">${formatDate(ev.startStr)}</span></div>
+    <div class="row"><span class="k">Estado</span><span class="v"><span class="status-pill" style="background:${sty.bg};color:${sty.fg};">${p.status_label}</span></span></div>
+    ${p.partial_label ? `<div class="row"><span class="k">Subtipo</span><span class="v">${p.partial_label}</span></div>` : ''}
+    ${p.event_time ? `<div class="row"><span class="k">Hora</span><span class="v">${p.event_time}</span></div>` : ''}
+    ${p.captured_by ? `<div class="row"><span class="k">Capturado por</span><span class="v">${p.captured_by}</span></div>` : ''}
+    ${p.reason ? `<div class="row"><span class="k">Motivo</span><span class="v" style="text-align:left;">${escapeHtml(p.reason)}</span></div>` : ''}
+  `;
+  const canCancel = (p.is_mine || IS_PRIV) && p.status !== 'CANCELLED' && p.status !== 'REJECTED';
+  document.getElementById('ins-footer').innerHTML = canCancel
+    ? `<button class="mac-btn danger" onclick="cancelReq(${ev.id})"><i class="fa fa-times"></i> Cancelar solicitud</button>`
+    : '';
+  document.getElementById('inspector').classList.add('open');
+  document.getElementById('scrim').classList.add('open');
+}
+function closeInspector() {
+  document.getElementById('inspector').classList.remove('open');
+  document.getElementById('scrim').classList.remove('open');
+}
+function escapeHtml(s) {
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+function formatDate(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 }
 
 function cancelReq(id) {
   fetch(`/vacaciones/${id}/cancel/`, { method:'POST', headers:{'X-CSRFToken': csrftoken} })
     .then(r => r.json())
     .then(d => {
-      if (d.success) { Swal.fire({icon:'success', title:'Cancelada', timer:1200, showConfirmButton:false}); calendar.refetchEvents(); }
-      else Swal.fire({icon:'error', title:'Error', text:d.message});
+      if (d.success) {
+        closeInspector();
+        Swal.fire({icon:'success', title:'Cancelada', timer:1200, showConfirmButton:false});
+        calendar.refetchEvents();
+        setTimeout(() => location.reload(), 1300);
+      } else Swal.fire({icon:'error', title:'Error', text:d.message});
     });
 }
 </script>
