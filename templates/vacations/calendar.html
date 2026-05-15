@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head_content %}
+<title>Vacaciones</title>
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css" rel="stylesheet">
+<style>
+  .vac-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px,1fr)); gap:14px; margin-bottom:18px; }
+  .vac-card { border-radius:14px; padding:18px; color:#fff; box-shadow:0 6px 18px rgba(0,0,0,.08); position:relative; overflow:hidden; }
+  .vac-card .label { font-size:12px; opacity:.85; text-transform:uppercase; letter-spacing:.05em; }
+  .vac-card .value { font-size:30px; font-weight:700; line-height:1; margin-top:6px; }
+  .vac-card .sub { font-size:12px; opacity:.85; margin-top:6px; }
+  .vac-card.allowance { background:linear-gradient(135deg,#6366f1,#8b5cf6); }
+  .vac-card.remaining { background:linear-gradient(135deg,#10b981,#059669); }
+  .vac-card.used      { background:linear-gradient(135deg,#f59e0b,#d97706); }
+  .vac-card.partial   { background:linear-gradient(135deg,#0ea5e9,#0369a1); }
+  .vac-legend { display:flex; gap:14px; flex-wrap:wrap; margin:10px 0 16px; font-size:12px; }
+  .vac-legend .dot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+  .vac-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+  #calendar { background:#fff; border-radius:14px; padding:14px; box-shadow:0 6px 18px rgba(0,0,0,.06); }
+  .fc .fc-toolbar-title { font-size:1.2rem; }
+  .modal-pretty .modal-content { border-radius:14px; border:0; }
+</style>
+{% endblock %}
+
+{% block panel_page %}Vacaciones <small>calendario y solicitudes</small>{% endblock %}
+{% block panel_title %}Mi calendario{% endblock %}
+
+{% block content %}
+<div class="vac-toolbar">
+  <div class="vac-legend">
+    <span><span class="dot" style="background:#f59e0b"></span>Pendiente líder</span>
+    <span><span class="dot" style="background:#3b82f6"></span>Pendiente RH</span>
+    <span><span class="dot" style="background:#10b981"></span>Aprobada</span>
+    <span><span class="dot" style="background:#ef4444"></span>Rechazada</span>
+    <span><span class="dot" style="background:#9ca3af"></span>Cancelada</span>
+  </div>
+  <div>
+    {% if is_leader or is_hr %}
+    <select id="scope" class="form-control form-control-sm" style="display:inline-block; width:auto;">
+      <option value="mine">Solo mías</option>
+      <option value="all">Toda la organización</option>
+    </select>
+    {% endif %}
+    <button id="btn-new" class="btn btn-success btn-sm"><i class="fa fa-plus"></i> Nueva solicitud</button>
+  </div>
+</div>
+
+<div id="calendar"></div>
+
+<!-- Modal nueva solicitud -->
+<div class="modal fade modal-pretty" id="newModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fa-solid fa-umbrella-beach"></i> Nueva solicitud</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <form id="newForm">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Tipo</label>
+            <select name="kind" id="f-kind" class="form-control" required>
+              <option value="FULL_DAY">🌴 Día completo (descuenta del saldo)</option>
+              <option value="PARTIAL">⏱️ Acumulable (llegada tarde / salida)</option>
+            </select>
+          </div>
+          <div class="form-group" id="grp-partial" style="display:none;">
+            <label>Tipo de acumulable</label>
+            <select name="partial_type" id="f-partial-type" class="form-control">
+              <option value="LATE">Llegada tarde</option>
+              <option value="EARLY_LEAVE">Salida en horas de trabajo</option>
+            </select>
+            <small class="text-muted">Cada 3 acumulables descuentan 1 día. Horario: 08:00–18:00.</small>
+          </div>
+          <div class="form-group" id="grp-time" style="display:none;">
+            <label id="lbl-time">Hora</label>
+            <input type="time" name="event_time" id="f-time" class="form-control" step="300">
+            <small class="text-muted" id="hint-time"></small>
+          </div>
+          <div class="form-group">
+            <label>Fecha</label>
+            <input type="date" name="date" id="f-date" class="form-control" required>
+          </div>
+          <div class="form-group" id="grp-leader">
+            {% if boss %}
+              <small class="text-muted">Tu solicitud se enviará a tu líder: <b>{{ boss.get_full_name|default:boss.username }}</b>.</small>
+            {% else %}
+              <small class="text-warning">Aún no tienes un líder asignado. La solicitud quedará pendiente hasta que RH la procese.</small>
+            {% endif %}
+          </div>
+          {% if is_leader %}
+          <hr>
+          <div class="form-group">
+            <label><input type="checkbox" id="as-leader" name="as_leader" value="1"> Registrar como líder (para otro trabajador, va directo a RH)</label>
+          </div>
+          <div class="form-group" id="grp-employee" style="display:none;">
+            <label>Trabajador</label>
+            <select name="employee_id" class="form-control">
+              <option value="">Selecciona…</option>
+              {% for e in employees %}
+                <option value="{{ e.id }}">{{ e.get_full_name|default:e.username }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+          <div class="form-group">
+            <label>Motivo (opcional)</label>
+            <textarea name="reason" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success">Enviar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/es.global.min.js"></script>
+<script>
+const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const eventsUrl = "{% url 'vacations:events_json' %}";
+const createUrl = "{% url 'vacations:create' %}";
+
+let calendar;
+document.addEventListener('DOMContentLoaded', () => {
+  const el = document.getElementById('calendar');
+  calendar = new FullCalendar.Calendar(el, {
+    initialView: 'dayGridMonth',
+    locale: 'es',
+    height: 'auto',
+    headerToolbar: { left:'prev,next today', center:'title', right:'dayGridMonth,listMonth' },
+    selectable: true,
+    dateClick: info => openNew(info.dateStr),
+    events: (info, success, failure) => {
+      const scope = (document.getElementById('scope')?.value) || 'mine';
+      fetch(`${eventsUrl}?scope=${scope}&start=${info.startStr}&end=${info.endStr}`)
+        .then(r => r.json()).then(d => success(d.events)).catch(failure);
+    },
+    eventClick: ev => showEvent(ev.event),
+  });
+  calendar.render();
+
+  document.getElementById('btn-new').addEventListener('click', () => openNew());
+  document.getElementById('f-kind').addEventListener('change', e => {
+    const isPartial = e.target.value === 'PARTIAL';
+    document.getElementById('grp-partial').style.display = isPartial ? '' : 'none';
+    document.getElementById('grp-time').style.display = isPartial ? '' : 'none';
+    if (isPartial) applyTimeBounds();
+  });
+  document.getElementById('f-partial-type').addEventListener('change', applyTimeBounds);
+  const asLead = document.getElementById('as-leader');
+  if (asLead) asLead.addEventListener('change', e => {
+    document.getElementById('grp-employee').style.display = e.target.checked ? '' : 'none';
+    const gl = document.getElementById('grp-leader');
+    if (gl) gl.style.display = e.target.checked ? 'none' : '';
+  });
+  const scopeSel = document.getElementById('scope');
+  if (scopeSel) scopeSel.addEventListener('change', () => calendar.refetchEvents());
+
+  document.getElementById('newForm').addEventListener('submit', submitNew);
+});
+
+function openNew(dateStr) {
+  document.getElementById('f-date').value = dateStr || new Date().toISOString().slice(0,10);
+  $('#newModal').modal('show');
+}
+
+function applyTimeBounds() {
+  const type = document.getElementById('f-partial-type').value;
+  const input = document.getElementById('f-time');
+  const lbl = document.getElementById('lbl-time');
+  const hint = document.getElementById('hint-time');
+  if (type === 'LATE') {
+    input.min = '08:00'; input.max = '11:00';
+    lbl.textContent = 'Hora de llegada';
+    hint.textContent = 'Entre 08:00 y 11:00.';
+    if (!input.value || input.value < '08:00' || input.value > '11:00') input.value = '09:00';
+  } else {
+    input.min = '14:00'; input.max = '18:00';
+    lbl.textContent = 'Hora de salida';
+    hint.textContent = 'Entre 14:00 y 18:00 (hasta 4 h antes del fin de jornada).';
+    if (!input.value || input.value < '14:00' || input.value > '18:00') input.value = '16:00';
+  }
+}
+
+function submitNew(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  fetch(createUrl, { method:'POST', body: fd, headers:{'X-CSRFToken': csrftoken} })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        $('#newModal').modal('hide');
+        e.target.reset();
+        document.getElementById('grp-partial').style.display = 'none';
+        document.getElementById('grp-time').style.display = 'none';
+        Swal.fire({icon:'success', title:'Solicitud enviada', timer:1500, showConfirmButton:false});
+        calendar.refetchEvents();
+      } else {
+        Swal.fire({icon:'error', title:'Error', text:d.message || 'No se pudo crear'});
+      }
+    });
+}
+
+function showEvent(ev) {
+  const p = ev.extendedProps;
+  const canCancel = p.is_mine || {{ is_leader|yesno:"true,false" }} || {{ is_hr|yesno:"true,false" }};
+  Swal.fire({
+    title: p.kind_label,
+    html: `
+      <div style="text-align:left;">
+        <p><b>Trabajador:</b> ${p.employee}</p>
+        <p><b>Fecha:</b> ${ev.startStr}</p>
+        <p><b>Estado:</b> ${p.status_label}</p>
+        ${p.partial_label ? `<p><b>Subtipo:</b> ${p.partial_label}</p>` : ''}
+        ${p.event_time ? `<p><b>Hora:</b> ${p.event_time}</p>` : ''}
+        ${p.reason ? `<p><b>Motivo:</b> ${p.reason}</p>` : ''}
+      </div>`,
+    showCancelButton: canCancel && p.status !== 'CANCELLED' && p.status !== 'REJECTED',
+    cancelButtonText: 'Cancelar solicitud',
+    cancelButtonColor: '#ef4444',
+    confirmButtonText: 'Cerrar',
+  }).then(res => {
+    if (res.dismiss === Swal.DismissReason.cancel) cancelReq(ev.id);
+  });
+}
+
+function cancelReq(id) {
+  fetch(`/vacaciones/${id}/cancel/`, { method:'POST', headers:{'X-CSRFToken': csrftoken} })
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) { Swal.fire({icon:'success', title:'Cancelada', timer:1200, showConfirmButton:false}); calendar.refetchEvents(); }
+      else Swal.fire({icon:'error', title:'Error', text:d.message});
+    });
+}
+</script>
+{% endblock %}

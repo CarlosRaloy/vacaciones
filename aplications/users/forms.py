@@ -47,7 +47,7 @@ class SignupForm(forms.Form):
             username=data['username'],
             password=data['password']
         )
-        Profile.objects.create(user=user)
+        # Profile lo crea el signal post_save de User.
         return user
 
 

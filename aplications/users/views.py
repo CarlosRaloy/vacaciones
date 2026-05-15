@@ -11,21 +11,12 @@ from .models import Profile
 def _home_for(user) -> str:
     """
     Devuelve la URL absoluta (string) a la que debe ir el usuario
-    según su nivel de perfil.
+    según su nivel de perfil. Cualquier nivel distinto de 0 (bloqueado)
+    accede a la home; los permisos finos se aplican en cada vista.
     """
     profile = getattr(user, "profile", None)
     level = getattr(profile, "level", 0)
-
-    # Mapeo nivel -> nombre de url
-    if level == 0:       # bloqueado
-        url_name = "users:ping"
-    elif level == 1:     # Usuario
-        url_name = "users:ping"
-    elif level == 2:     # Admin
-        url_name = "users:ping"
-    else:                # fallback
-        url_name = "users:block"
-
+    url_name = "users:block" if level == 0 else "users:ping"
     return reverse(url_name)
 
 def login_view(request):
@@ -104,8 +95,40 @@ def update_profile(request):
         },
     )
 
+def _is_admin(user) -> bool:
+    return bool(getattr(getattr(user, 'profile', None), 'is_admin', False)) or user.is_superuser
+
+
+VALID_LEVELS = {0, 1, 2, 3, 4, 5}
+
+
+def _apply_profile_fields(profile, post):
+    """Actualiza el nivel del Profile desde POST."""
+    try:
+        level = int(post.get('level') or 1)
+    except ValueError:
+        level = 1
+    if level not in VALID_LEVELS:
+        level = 1
+    profile.level = level
+    boss_id = post.get('boss') or None
+    if boss_id:
+        try:
+            profile.boss = User.objects.get(pk=boss_id, profile__level=4)
+        except User.DoesNotExist:
+            profile.boss = None
+    else:
+        profile.boss = None
+    profile.save()
+
+
 @login_required
 def user_panel(request):
+    if not _is_admin(request.user):
+        return render(request, 'block.html', {
+            'message': 'Solo los administradores pueden acceder al panel de usuarios.',
+        }, status=403)
+
     if request.method == "POST":
         action = request.POST.get("action")
         user_id = request.POST.get("user_id")
@@ -119,10 +142,7 @@ def user_panel(request):
                     last_name=request.POST["last_name"],
                     email=request.POST.get("email", "").strip()
                 )
-                Profile.objects.create(
-                    user=user,
-                    level=request.POST.get("level", 0),
-                )
+                _apply_profile_fields(user.profile, request.POST)
                 return JsonResponse({"success": True, "message": "Usuario creado exitosamente."})
             except Exception as e:
                 return JsonResponse({"success": False, "message": f"Error al crear usuario: {str(e)}"})
@@ -134,9 +154,7 @@ def user_panel(request):
                 user.last_name = request.POST["last_name"]
                 user.email = request.POST.get("email", "").strip()
                 user.save()
-                profile = user.profile
-                profile.level = request.POST.get("level", 0)
-                profile.save()
+                _apply_profile_fields(user.profile, request.POST)
                 return JsonResponse({"success": True, "message": "Usuario actualizado correctamente."})
             except Exception as e:
                 return JsonResponse({"success": False, "message": f"Error al editar usuario: {str(e)}"})
@@ -144,13 +162,16 @@ def user_panel(request):
         elif action == "delete" and user_id:
             try:
                 user = get_object_or_404(User, pk=user_id)
+                if user.pk == request.user.pk:
+                    return JsonResponse({"success": False, "message": "No puedes eliminar tu propio usuario."})
                 user.delete()
                 return JsonResponse({"success": True, "message": "Usuario eliminado correctamente."})
             except Exception as e:
                 return JsonResponse({"success": False, "message": f"Error al eliminar usuario: {str(e)}"})
 
-    users = User.objects.select_related("profile").all()
-    return render(request, "users/user_panel.html", {"users": users})
+    users = User.objects.select_related("profile", "profile__boss").all()
+    leaders = User.objects.filter(profile__level=4).order_by('first_name', 'username')
+    return render(request, "users/user_panel.html", {"users": users, "leaders": leaders})
 
 @login_required
 def ping(request):

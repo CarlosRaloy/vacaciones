@@ -44,15 +44,21 @@
 
                     <div class="info">
                         <b class="caret pull-right"></b>
-                        <h5>{{ request.user.first_name }}</h5>
+                        <h5>{{ request.user.get_full_name|default:request.user.username }}</h5>
+                        <small>@{{ request.user.username }}</small>
                     </div>
 
                     <div class="col-md-12 p-4">
-                        {% if request.user.profile.level == 0 %}<i class="fas fa-ban"></i> Status 0
-                        {% elif request.user.profile.level == 1 %}<i class="fa-solid fa-user-plus"></i> Status 1
-                        {% elif request.user.profile.level == 2 %}<i class="fa-solid fa-user-tie"></i> Status 2
-                        {% elif request.user.profile.level == 3 %}<i class="fa-solid fa-user-secret"></i> Status 3
-                        {% else %} User {% endif %}
+                        {% if request.user.profile.is_admin or request.user.is_superuser %}
+                            <i class="fa-solid fa-user-shield" style="color:#ef4444;"></i> Admin
+                        {% endif %}
+                        {% if request.user.profile.is_hr %}
+                            <i class="fa-solid fa-user-tie" style="color:#8b5cf6;"></i> RH
+                        {% endif %}
+                        {% if request.user.profile.is_leader %}
+                            <i class="fa-solid fa-user-gear" style="color:#0ea5e9;"></i> Líder
+                        {% endif %}
+                        <i class="fa-solid fa-user" style="color:#64748b;"></i> Trabajador
                     </div>
 
                     <div class="col-md-12 p-4">
@@ -74,21 +80,18 @@
             <li class="nav-header">Navegación</li>
 
 
-            <!-- Panel ONE -->
-            <li class="has-sub logic_blocked">
-                <a href="javascript:;">
-                    <b class="caret"></b>
+            <!-- Home (visible para todos los logueados) -->
+            <li>
+                <a href="{% url 'users:ping' %}">
                     <i class="fa-solid fa-house" style="color: #74C0FC;"></i>
                     <span>Home</span>
                 </a>
-                <ul class="sub-menu">
-                    <li><a href="{% url 'users:ping' %}"><i class="fa-solid fa-table"></i> Listado</a></li>
-                </ul>
             </li>
-            <!-- End Panel -->
+            <!-- End Home -->
 
-            <!-- Panel TWO  -->
-            <li class="has-sub logic_blocked">
+            <!-- Panel TWO (solo admin) -->
+            {% if request.user.profile.is_admin or request.user.is_superuser %}
+            <li class="has-sub">
                 <a href="javascript:;">
                     <b class="caret"></b>
                     <i class="fa-solid fa-users" style="color: #66ffed;"></i>
@@ -98,7 +101,27 @@
                     <li><a href="{% url 'users:panel' %}"><i class="fa-regular fa-address-card" style="color: #75a8ff;"></i> Panel Admin</a></li>
                 </ul>
             </li>
+            {% endif %}
             <!-- End Panel-->
+
+            <!-- Vacaciones -->
+            <li class="has-sub">
+                <a href="javascript:;">
+                    <b class="caret"></b>
+                    <i class="fa-solid fa-umbrella-beach" style="color: #ffcd56;"></i>
+                    <span>Vacaciones</span>
+                </a>
+                <ul class="sub-menu">
+                    <li><a href="{% url 'vacations:calendar' %}"><i class="fa-regular fa-calendar"></i> Calendario</a></li>
+                    {% if request.user.profile.is_leader %}
+                    <li><a href="{% url 'vacations:leader_inbox' %}"><i class="fa-solid fa-inbox"></i> Bandeja Líder</a></li>
+                    {% endif %}
+                    {% if request.user.profile.is_hr %}
+                    <li><a href="{% url 'vacations:hr_inbox' %}"><i class="fa-solid fa-user-shield"></i> Bandeja RH</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+            <!-- End Vacaciones -->
 
             <!-- End Panel Config -->
 

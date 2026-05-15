@@ -22,3 +22,9 @@ out.log
 
 # Env
 .env
+
+ CLAUDE.md
+
+*/migrations/*.py
+!vacaciones/aplications/users/migrations/__init__.py
+
