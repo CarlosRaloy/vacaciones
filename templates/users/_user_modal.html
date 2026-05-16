@@ -1,0 +1,149 @@
+{% comment %}
+Modal de usuario (crear/editar). Recibe `mode` ('create' o 'edit') y usa
+las variables del contexto: leaders, positions, areas.
+{% endcomment %}
+<div class="modal fade" id="modal-{{ mode }}-user" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <form id="form-{{ mode }}-user" method="POST">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="{{ mode }}">
+      {% if mode == 'edit' %}<input type="hidden" name="user_id">{% endif %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">
+            <i class="fa-solid fa-user-{% if mode == 'edit' %}pen{% else %}plus{% endif %}" style="color:#2196ff;"></i>
+            {% if mode == 'edit' %}Editar{% else %}Crear{% endif %} Usuario
+          </h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+
+          <!-- Datos personales -->
+          <div class="modal-section">
+            <div class="section-title">
+              <i class="fa-solid fa-id-card"></i> Datos personales
+            </div>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label">Nombre</label>
+                <input type="text" name="first_name" class="form-control" {% if mode == 'create' %}required{% endif %}>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Apellido</label>
+                <input type="text" name="last_name" class="form-control" {% if mode == 'create' %}required{% endif %}>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-control">
+              </div>
+              {% if mode == 'create' %}
+              <div class="col-md-6">
+                <label class="form-label">Usuario</label>
+                <input type="text" name="username" class="form-control" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Contraseña</label>
+                <input type="password" name="password" class="form-control" required>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Rol y organización -->
+          <div class="modal-section">
+            <div class="section-title">
+              <i class="fa-solid fa-sitemap"></i> Rol y organización
+            </div>
+            <div class="row g-3">
+              <div class="col-md-3">
+                <label class="form-label">Nivel</label>
+                <select name="level" class="form-control" required>
+                  <option value="0">Bloqueado</option>
+                  <option value="1"{% if mode == 'create' %} selected{% endif %}>Trabajador</option>
+                  <option value="2">Admin</option>
+                  <option value="3">RH</option>
+                  <option value="4">Líder</option>
+                  <option value="5">Auditor</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Nº Nómina</label>
+                <input type="text" name="payroll_number" class="form-control" maxlength="100">
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Puesto</label>
+                <select name="position" class="form-control">
+                  <option value="">— Sin puesto —</option>
+                  {% for p in positions %}
+                    <option value="{{ p.id }}">{{ p.name_position }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Área</label>
+                <select name="area" class="form-control">
+                  <option value="">— Sin área —</option>
+                  {% for a in areas %}
+                    <option value="{{ a.id }}">{{ a.name_area }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Datos de contratación -->
+          <div class="modal-section">
+            <div class="section-title">
+              <i class="fa-solid fa-calendar-check"></i> Datos de contratación
+            </div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">Fecha de ingreso</label>
+                <input type="date" name="hiring_date" class="form-control">
+                <small class="text-muted">Define el ciclo anual (aniversario) para vacaciones.</small>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Días de vacaciones asignados</label>
+                <input type="number" name="days_vacations" class="form-control" min="0" max="365" step="1" placeholder="Ej. 12">
+                <small class="text-muted">Saldo anual disponible. Sin valor = 0.</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Jefe inmediato -->
+          <div class="modal-section">
+            <div class="section-title">
+              <i class="fa-solid fa-user-tie"></i> Jefe inmediato
+            </div>
+            <div class="seg-tabs">
+              <button type="button" data-mode="list" class="active"><i class="fa fa-list"></i> De la lista</button>
+              <button type="button" data-mode="manual"><i class="fa fa-pen"></i> Manual</button>
+            </div>
+            <input type="hidden" name="boss_mode" value="list">
+            <div class="boss-list-wrap">
+              <select name="boss" class="form-control">
+                <option value="">— Selecciona un jefe (nivel 4) —</option>
+                {% for l in leaders %}
+                  <option value="{{ l.id }}">{{ l.get_full_name|default:l.username }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="boss-manual-wrap" style="display:none;">
+              <input type="text" name="boss_name" class="form-control" placeholder="Nombre del jefe (texto libre, fuera del sistema)" maxlength="150">
+              <small class="text-muted">Útil cuando el jefe no está registrado en la plataforma.</small>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fa fa-check"></i> {% if mode == 'edit' %}Actualizar{% else %}Crear{% endif %}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

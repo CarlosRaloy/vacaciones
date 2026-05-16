@@ -63,6 +63,15 @@ class VacationRequest(models.Model):
         help_text='Quién registró físicamente la solicitud (trabajador, líder, RH o admin).',
     )
 
+    late_registration = models.BooleanField(
+        default=False,
+        help_text='True si la solicitud se capturó después de la fecha del evento.',
+    )
+    late_note = models.TextField(
+        blank=True,
+        help_text='Motivo del registro tardío (accidente, olvido, etc.). Solo aplica si late_registration=True.',
+    )
+
     created = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
 

@@ -1,26 +1,110 @@
-<e</e>{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 
 {% block head_content %}
-<title>Usuarios</title>
+<title>Panel de Usuarios</title>
 <style>
-  .role-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:600; margin:1px; color:#fff; }
+  .role-badge { display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:600; margin:1px; color:#fff; }
   .role-blocked { background:#1f2937; }
   .role-worker  { background:#64748b; }
   .role-admin   { background:#ef4444; }
   .role-hr      { background:#8b5cf6; }
   .role-leader  { background:#0ea5e9; }
   .role-auditor { background:#0d9488; }
+
+  .modal-section {
+    border: 1px solid #e9ecef;
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    background: #fafbfc;
+  }
+  .modal-section .section-title {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600;
+    color: #495057;
+    text-transform: uppercase; letter-spacing: .06em;
+    margin-bottom: 12px;
+  }
+  .modal-section .section-title i { color: #007aff; font-size: 18px; }
+
+  .seg-tabs {
+    display: inline-flex; gap: 4px;
+    background: #e9ecef;
+    padding: 3px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  .seg-tabs button {
+    border: 0;
+    background: transparent;
+    padding: 6px 14px;
+    border-radius: 7px;
+    font-size: 12.5px; font-weight: 500;
+    color: #495057;
+    cursor: pointer;
+    transition: all .2s ease;
+  }
+  .seg-tabs button.active {
+    background: linear-gradient(135deg, #2196ff, #007aff);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(0,122,255,.30);
+  }
+
+  .btn-sig {
+    background: linear-gradient(135deg, #34c759, #2eb350);
+    border: 0;
+    color: #fff;
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(52,199,89,.40);
+  }
+  .btn-sig:hover { background: linear-gradient(135deg, #4dd370, #38c75a); }
+
+  /* Modal de firma */
+  #sig-canvas {
+    border: 2px dashed #cbd5e1;
+    border-radius: 10px;
+    background: #fff;
+    display: block;
+    width: 100%;
+    height: 240px;
+    touch-action: none;
+    cursor: crosshair;
+  }
+  #sig-current img {
+    max-width: 280px;
+    max-height: 120px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    background: #fff;
+    padding: 4px;
+  }
+  .sig-btn-clear {
+    background: linear-gradient(135deg, #ff9500, #ff7d33);
+    border: 0; color: #fff;
+    padding: 8px 16px; border-radius: 8px;
+    font-weight: 600; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(255,149,0,.40);
+  }
+  .sig-btn-save {
+    background: linear-gradient(135deg, #2196ff, #007aff);
+    border: 0; color: #fff;
+    padding: 8px 16px; border-radius: 8px;
+    font-weight: 600; cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,122,255,.40);
+  }
 </style>
 {% endblock %}
 
-{% block panel_page %}Panel de usuarios <small>Administración de roles y vacaciones</small>{% endblock %}
+{% block panel_page %}Panel de usuarios <small>Administración de usuarios</small>{% endblock %}
 {% block panel_title %}Administración{% endblock %}
 
 {% block content %}
-
 <button id="btn-create-user" class="btn btn-success mb-3">
-    <i class="fas fa-user-plus"></i> Crear Usuario
+  <i class="fas fa-user-plus"></i> Crear Usuario
 </button>
 
 <h1><i class="fas fa-users me-2" style="color:#009587"></i> Panel de Usuarios</h1>
@@ -32,7 +116,9 @@
       <tr>
         <th>Nombre</th>
         <th>Usuario</th>
-        <th>Email</th>
+        <th>Nº Nómina</th>
+        <th>Puesto</th>
+        <th>Área</th>
         <th>Rol</th>
         <th>Líder</th>
         <th>Último Acceso</th>
@@ -40,133 +126,100 @@
       </tr>
     </thead>
     <tbody>
-      {% for user in users %}
+      {% for u in users %}
       <tr>
-        <td>{{ user.get_full_name }}</td>
-        <td>{{ user.username }}</td>
-        <td>{{ user.email }}</td>
+        <td>{{ u.get_full_name }}</td>
+        <td>{{ u.username }}</td>
+        <td>{{ u.profile.payroll_number|default:"—" }}</td>
+        <td>{{ u.profile.position.name_position|default:"—" }}</td>
+        <td>{{ u.profile.area.name_area|default:"—" }}</td>
         <td>
-          {% with lvl=user.profile.level %}
+          {% with lvl=u.profile.level %}
             {% if lvl == 0 %}<span class="role-badge role-blocked">Bloqueado</span>
             {% elif lvl == 1 %}<span class="role-badge role-worker">Trabajador</span>
             {% elif lvl == 2 %}<span class="role-badge role-admin">Admin</span>
             {% elif lvl == 3 %}<span class="role-badge role-hr">RH</span>
             {% elif lvl == 4 %}<span class="role-badge role-leader">Líder</span>
             {% elif lvl == 5 %}<span class="role-badge role-auditor">Auditor</span>
-            {% else %}<span class="role-badge role-worker">Nivel {{ lvl }}</span>{% endif %}
+            {% endif %}
           {% endwith %}
         </td>
-        <td>{% if user.profile.boss %}{{ user.profile.boss.get_full_name|default:user.profile.boss.username }}{% else %}—{% endif %}</td>
-        <td>{% if user.last_login %}{{ user.last_login|date:"d/m/Y H:i" }}{% else %}<span class="text-muted">Nunca</span>{% endif %}</td>
+        <td>
+          {% if u.profile.boss %}{{ u.profile.boss.get_full_name|default:u.profile.boss.username }}
+          {% elif u.profile.boss_name %}<span class="text-muted">{{ u.profile.boss_name }} (manual)</span>
+          {% else %}—{% endif %}
+        </td>
+        <td>{% if u.last_login %}{{ u.last_login|date:"d/m/Y H:i" }}{% else %}<span class="text-muted">Nunca</span>{% endif %}</td>
         <td class="text-center" style="white-space:nowrap;">
           <button class="btn btn-sm btn-primary btn-edit"
-                  data-id="{{ user.id }}"
-                  data-username="{{ user.username }}"
-                  data-email="{{ user.email }}"
-                  data-first_name="{{ user.first_name }}"
-                  data-last_name="{{ user.last_name }}"
-                  data-level="{{ user.profile.level }}"
-                  data-boss="{{ user.profile.boss_id|default_if_none:'' }}">
+                  data-id="{{ u.id }}"
+                  data-username="{{ u.username }}"
+                  data-email="{{ u.email }}"
+                  data-first_name="{{ u.first_name }}"
+                  data-last_name="{{ u.last_name }}"
+                  data-level="{{ u.profile.level }}"
+                  data-payroll="{{ u.profile.payroll_number|default_if_none:'' }}"
+                  data-position="{{ u.profile.position_id|default_if_none:'' }}"
+                  data-area="{{ u.profile.area_id|default_if_none:'' }}"
+                  data-hiring="{{ u.profile.hiring_date|date:'Y-m-d' }}"
+                  data-days="{{ u.profile.days_vacations|default_if_none:'' }}"
+                  data-boss="{{ u.profile.boss_id|default_if_none:'' }}"
+                  data-boss-name="{{ u.profile.boss_name|default_if_none:'' }}">
             <i class="fas fa-edit"></i>
           </button>
-          <button class="btn btn-sm btn-danger btn-delete" data-id="{{ user.id }}">
+          <button class="btn btn-sm btn-danger btn-delete" data-id="{{ u.id }}">
             <i class="fas fa-trash-alt"></i>
+          </button>
+          <button class="btn-sig btn-signature"
+                  data-id="{{ u.id }}"
+                  data-name="{{ u.get_full_name|default:u.username }}"
+                  data-current="{% if u.profile.signature %}{{ u.profile.signature.url }}{% endif %}"
+                  title="Firma">
+            <i class="fa-solid fa-signature"></i>
           </button>
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="7" class="text-center text-muted">No hay usuarios registrados.</td></tr>
+      <tr><td colspan="9" class="text-center text-muted">No hay usuarios registrados.</td></tr>
       {% endfor %}
     </tbody>
   </table>
 </div>
 
-{# ============ Modal Crear ============ #}
-<div class="modal fade" id="modal-create-user" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <form id="form-create-user" method="POST">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="create">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="fas fa-user-plus"></i> Crear Usuario</h5>
-        </div>
-        <div class="modal-body row g-2">
-          <div class="col-md-4"><label>Nombre</label><input type="text" name="first_name" class="form-control" required></div>
-          <div class="col-md-4"><label>Apellido</label><input type="text" name="last_name" class="form-control" required></div>
-          <div class="col-md-4"><label>Username</label><input type="text" name="username" class="form-control" required></div>
-          <div class="col-md-4"><label>Contraseña</label><input type="password" name="password" class="form-control" required></div>
-          <div class="col-md-4"><label>Email (opcional)</label><input type="email" name="email" class="form-control"></div>
-          <div class="col-md-4">
-            <label>Nivel</label>
-            <select name="level" class="form-control" required>
-              <option value="0">Bloqueado</option>
-              <option value="1" selected>Trabajador</option>
-              <option value="2">Admin</option>
-              <option value="3">RH</option>
-              <option value="4">Líder</option>
-              <option value="5">Auditor</option>
-            </select>
-          </div>
-          <div class="col-md-12">
-            <label>Líder inmediato (a quién solicita vacaciones)</label>
-            <select name="boss" class="form-control">
-              <option value="">— Sin líder asignado —</option>
-              {% for l in leaders %}
-                <option value="{{ l.id }}">{{ l.get_full_name|default:l.username }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Guardar</button>
-        </div>
-      </div>
-    </form>
-  </div>
-</div>
+{# ============ Modal Crear / Editar (compartido) ============ #}
+{% for kind in 'create,edit'|cut:' '|slice:'1' %}{% endfor %}
+{% include 'users/_user_modal.html' with mode='create' %}
+{% include 'users/_user_modal.html' with mode='edit' %}
 
-{# ============ Modal Editar ============ #}
-<div class="modal fade" id="modal-edit-user" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <form id="form-edit-user" method="POST">
-      {% csrf_token %}
-      <input type="hidden" name="action" value="edit">
-      <input type="hidden" name="user_id">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title"><i class="fas fa-user-edit"></i> Editar Usuario</h5>
-        </div>
-        <div class="modal-body row g-2">
-          <div class="col-md-4"><label>Nombre</label><input type="text" name="first_name" class="form-control"></div>
-          <div class="col-md-4"><label>Apellido</label><input type="text" name="last_name" class="form-control"></div>
-          <div class="col-md-4"><label>Email</label><input type="email" name="email" class="form-control"></div>
-          <div class="col-md-4">
-            <label>Nivel</label>
-            <select name="level" class="form-control" required>
-              <option value="0">Bloqueado</option>
-              <option value="1">Trabajador</option>
-              <option value="2">Admin</option>
-              <option value="3">RH</option>
-              <option value="4">Líder</option>
-              <option value="5">Auditor</option>
-            </select>
-          </div>
-          <div class="col-md-12">
-            <label>Líder inmediato</label>
-            <select name="boss" class="form-control">
-              <option value="">— Sin líder asignado —</option>
-              {% for l in leaders %}
-                <option value="{{ l.id }}">{{ l.get_full_name|default:l.username }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="submit" class="btn btn-primary">Actualizar</button>
+{# ============ Modal Firma ============ #}
+<div class="modal fade" id="modal-signature" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fa-solid fa-signature" style="color:#2196ff;"></i>
+          Firma de <span id="sig-user-name"></span>
+        </h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" style="font-size:13px;">
+          Dibuja la firma con el mouse o pantalla táctil. Se guardará como PNG; si ya había una, se reemplazará.
+        </p>
+        <canvas id="sig-canvas"></canvas>
+        <div id="sig-current" style="margin-top:14px;display:none;">
+          <small class="text-muted">Firma actual:</small><br>
+          <img id="sig-current-img" alt="Firma actual">
         </div>
       </div>
-    </form>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" class="sig-btn-clear" id="sig-clear"><i class="fa fa-eraser"></i> Limpiar</button>
+        <button type="button" class="sig-btn-save" id="sig-save"><i class="fa fa-save"></i> Guardar firma</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -174,52 +227,59 @@
 
 {% block scripts %}
 <script>
+const PANEL_URL = "{% url 'users:panel' %}";
+const SIG_URL = "{% url 'users:signature' %}";
+const csrftoken = "{{ csrf_token }}";
+
 document.addEventListener("DOMContentLoaded", function () {
+  // ── Crear ──
   const createBtn = document.getElementById("btn-create-user");
   if (createBtn) {
-    const createModal = new bootstrap.Modal(document.getElementById("modal-create-user"));
-    createBtn.addEventListener("click", e => { e.preventDefault(); createModal.show(); });
+    createBtn.addEventListener("click", e => {
+      e.preventDefault();
+      document.getElementById('form-create-user').reset();
+      switchBossMode(document.getElementById('form-create-user'), 'list');
+      $("#modal-create-user").modal('show');
+    });
   }
 
   $('#form-create-user').submit(function (e) {
     e.preventDefault();
-    const fd = new FormData(this);
-    $.ajax({
-      url: "{% url 'users:panel' %}", method: "POST", data: fd,
-      processData: false, contentType: false,
-      success: d => d.success
-        ? Swal.fire("✅ Éxito", d.message, "success").then(() => location.reload())
-        : Swal.fire("❌ Error", d.message, "error"),
-      error: () => Swal.fire("❌ Error", "Error inesperado en el servidor", "error")
-    });
+    submitUserForm(this);
   });
 
+  // ── Editar ──
   $(".btn-edit").click(function () {
     const $b = $(this);
-    const modal = new bootstrap.Modal(document.getElementById("modal-edit-user"));
     const $f = $("#form-edit-user");
     $f.find("input[name='user_id']").val($b.data("id"));
     $f.find("input[name='first_name']").val($b.data("first_name"));
     $f.find("input[name='last_name']").val($b.data("last_name"));
     $f.find("input[name='email']").val($b.data("email"));
     $f.find("select[name='level']").val(String($b.data("level") ?? '1'));
-    $f.find("select[name='boss']").val(String($b.data("boss") || ''));
-    modal.show();
+    $f.find("input[name='payroll_number']").val($b.data("payroll") || '');
+    $f.find("select[name='position']").val(String($b.data("position") || ''));
+    $f.find("select[name='area']").val(String($b.data("area") || ''));
+    $f.find("input[name='hiring_date']").val($b.data("hiring") || '');
+    $f.find("input[name='days_vacations']").val($b.data("days") || '');
+    const bossId = String($b.data("boss") || '');
+    const bossName = $b.data("boss-name") || '';
+    if (!bossId && bossName) {
+      switchBossMode($f[0], 'manual');
+      $f.find("input[name='boss_name']").val(bossName);
+    } else {
+      switchBossMode($f[0], 'list');
+      $f.find("select[name='boss']").val(bossId);
+    }
+    $("#modal-edit-user").modal('show');
   });
 
   $('#form-edit-user').submit(function (e) {
     e.preventDefault();
-    const fd = new FormData(this);
-    $.ajax({
-      url: "{% url 'users:panel' %}", method: "POST", data: fd,
-      processData: false, contentType: false,
-      success: d => d.success
-        ? Swal.fire("✅ Actualizado", d.message, "success").then(() => location.reload())
-        : Swal.fire("❌ Error", d.message, "error"),
-      error: () => Swal.fire("❌ Error", "Error inesperado en el servidor", "error")
-    });
+    submitUserForm(this);
   });
 
+  // ── Eliminar ──
   $(".btn-delete").click(function () {
     const userId = $(this).data("id");
     Swal.fire({
@@ -229,8 +289,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }).then(result => {
       if (!result.isConfirmed) return;
       $.ajax({
-        url: "{% url 'users:panel' %}", method: "POST",
-        data: { action: "delete", user_id: userId, csrfmiddlewaretoken: '{{ csrf_token }}' },
+        url: PANEL_URL, method: "POST",
+        data: { action: "delete", user_id: userId, csrfmiddlewaretoken: csrftoken },
         success: d => d.success
           ? Swal.fire("✅ Eliminado", d.message, "success").then(() => location.reload())
           : Swal.fire("❌ Error", d.message, "error"),
@@ -238,6 +298,158 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     });
   });
+
+  // ── Tabs jefe (De la lista / Manual) ──
+  document.querySelectorAll('.seg-tabs button').forEach(b => {
+    b.onclick = (e) => {
+      e.preventDefault();
+      const mode = b.dataset.mode;
+      switchBossMode(b.closest('form'), mode);
+    };
+  });
+
+  // ── Firma ──
+  initSignatureModal();
 });
+
+function switchBossMode(form, mode) {
+  form.querySelectorAll('.seg-tabs button').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  form.querySelector('.boss-list-wrap').style.display    = (mode === 'list') ? '' : 'none';
+  form.querySelector('.boss-manual-wrap').style.display  = (mode === 'manual') ? '' : 'none';
+  form.querySelector('input[name=boss_mode]').value = mode;
+  if (mode === 'list') form.querySelector('input[name=boss_name]').value = '';
+  if (mode === 'manual') form.querySelector('select[name=boss]').value = '';
+}
+
+function submitUserForm(form) {
+  const fd = new FormData(form);
+  $.ajax({
+    url: PANEL_URL, method: "POST", data: fd,
+    processData: false, contentType: false,
+    success: d => d.success
+      ? Swal.fire("✅ Listo", d.message, "success").then(() => location.reload())
+      : Swal.fire("❌ Error", d.message, "error"),
+    error: () => Swal.fire("❌ Error", "Error inesperado", "error")
+  });
+}
+
+/* ──────────────── Signature Pad (canvas vanilla) ──────────────── */
+let sigCanvas, sigCtx, sigDrawing = false, sigLast = null, sigUserId = null, sigDirty = false;
+
+function initSignatureModal() {
+  sigCanvas = document.getElementById('sig-canvas');
+  sigCtx = sigCanvas.getContext('2d');
+
+  const modalEl = document.getElementById('modal-signature');
+
+  // Adjuntamos los listeners de dibujo UNA SOLA VEZ en el init.
+  // Así no dependen de que setupCanvas() se vuelva a llamar.
+  sigCanvas.addEventListener('pointerdown', sigStart);
+  sigCanvas.addEventListener('pointermove', sigMove);
+  sigCanvas.addEventListener('pointerup',   sigEnd);
+  sigCanvas.addEventListener('pointercancel', sigEnd);
+  sigCanvas.addEventListener('pointerleave', sigEnd);
+
+  $('.btn-signature').on('click', function () {
+    sigUserId = $(this).data('id');
+    document.getElementById('sig-user-name').textContent = $(this).data('name');
+    const cur = $(this).data('current');
+    const curBlock = document.getElementById('sig-current');
+    if (cur) {
+      document.getElementById('sig-current-img').src = cur + '?t=' + Date.now();
+      curBlock.style.display = '';
+    } else {
+      curBlock.style.display = 'none';
+    }
+    // Mostrar modal con jQuery (compatible BS4 y BS5)
+    $(modalEl).modal('show');
+  });
+
+  // Usamos jQuery .on() para captar 'shown.bs.modal' en BS4 (jQuery event)
+  // y también en BS5 (CustomEvent que jQuery delega).
+  $(modalEl).on('shown.bs.modal', function () {
+    // Doble RAF para esperar el render final tras la transición.
+    requestAnimationFrame(() => requestAnimationFrame(setupCanvas));
+  });
+
+  // Fallback: si por alguna razón shown.bs.modal no dispara, intentamos setup
+  // tras un timeout corto al hacer click en el botón de firma.
+  $('.btn-signature').on('click', () => setTimeout(setupCanvas, 350));
+
+  $(window).on('resize', () => {
+    if ($(modalEl).hasClass('show')) requestAnimationFrame(setupCanvas);
+  });
+
+  document.getElementById('sig-clear').onclick = () => {
+    sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+    sigDirty = false;
+  };
+  document.getElementById('sig-save').onclick = saveSignature;
+}
+
+function setupCanvas() {
+  if (!sigCanvas) return;
+  // offsetWidth/Height funcionan cuando el modal ya es visible.
+  // Fallback a getBoundingClientRect y a un default si todo falla.
+  const w = sigCanvas.offsetWidth || sigCanvas.getBoundingClientRect().width || 600;
+  const h = sigCanvas.offsetHeight || sigCanvas.getBoundingClientRect().height || 240;
+  // Solo redimensionar si cambió, así no perdemos el dibujo en resize accidental.
+  if (sigCanvas.width !== Math.round(w) || sigCanvas.height !== Math.round(h)) {
+    sigCanvas.width = Math.round(w);
+    sigCanvas.height = Math.round(h);
+    sigCtx.strokeStyle = '#1d1d1f';
+    sigCtx.lineWidth = 2.5;
+    sigCtx.lineCap = 'round';
+    sigCtx.lineJoin = 'round';
+    sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+    sigDirty = false;
+  }
+}
+
+function sigPos(e) {
+  const r = sigCanvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+function sigStart(e) {
+  e.preventDefault();
+  sigDrawing = true;
+  sigLast = sigPos(e);
+  try { sigCanvas.setPointerCapture(e.pointerId); } catch (_) {}
+}
+function sigMove(e) {
+  if (!sigDrawing) return;
+  const p = sigPos(e);
+  sigCtx.beginPath();
+  sigCtx.moveTo(sigLast.x, sigLast.y);
+  sigCtx.lineTo(p.x, p.y);
+  sigCtx.stroke();
+  sigLast = p;
+  sigDirty = true;
+}
+function sigEnd() { sigDrawing = false; sigLast = null; }
+
+function saveSignature() {
+  if (!sigDirty) {
+    Swal.fire({icon:'info', title:'Vacía', text:'Dibuja una firma antes de guardar.'});
+    return;
+  }
+  const dataUrl = sigCanvas.toDataURL('image/png');
+  const fd = new FormData();
+  fd.append('user_id', sigUserId);
+  fd.append('action', 'save');
+  fd.append('data_url', dataUrl);
+  fd.append('csrfmiddlewaretoken', csrftoken);
+  fetch(SIG_URL, {method:'POST', body:fd, headers:{'X-CSRFToken': csrftoken}})
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        Swal.fire({icon:'success', title:'Firma guardada', timer:1100, showConfirmButton:false});
+        setTimeout(() => location.reload(), 900);
+      } else Swal.fire({icon:'error', title:'Error', text:d.message});
+    })
+    .catch(() => Swal.fire({icon:'error', title:'Error', text:'No se pudo guardar.'}));
+}
 </script>
 {% endblock %}

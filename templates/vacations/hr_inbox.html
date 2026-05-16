@@ -1,36 +1,387 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block panel_page %}Bandeja de RH{% endblock %}
-{% block panel_title %}Solicitudes para confirmar{% endblock %}
+{% block panel_title %}Listado de solicitudes{% endblock %}
+
+{% block head_content %}
+<title>Vacaciones · Bandeja RH</title>
+<style>
+  :root {
+    --st-pl: #ff9500;
+    --st-ph: #3b82f6;
+    --st-ap: #34c759;
+    --st-rj: #ff3b30;
+    --st-cn: #78788c;
+  }
+
+  /* Fondo wallpaper como en el calendario */
+  #content.content {
+    background:
+      linear-gradient(180deg, rgba(10,10,18,.45) 0%, rgba(10,10,18,.30) 100%),
+      url("{% static 'img/bg_calendar.webp' %}") center center / cover no-repeat fixed,
+      #0a0a14;
+    color: rgba(255,255,255,.96);
+    min-height: calc(100vh - 60px);
+  }
+  .inbox-wrap { min-height: calc(100vh - 96px); }
+  .panel.panel-inverse > .panel-heading,
+  .page-header { display: none; }
+  .panel.panel-inverse { background: transparent; border: 0; box-shadow: none; }
+  .panel.panel-inverse > .panel-body { padding: 18px; background: transparent; }
+
+  body, body * { box-sizing: border-box; }
+
+  .inbox-wrap {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+    color: rgba(255,255,255,.96);
+  }
+
+  .inbox-header {
+    background: rgba(20,24,38,.40);
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 20px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow: 0 10px 32px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.30);
+  }
+  .inbox-title {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .inbox-title h2 {
+    font-size: 22px; font-weight: 700; margin: 0;
+    text-shadow: 0 1px 3px rgba(0,0,0,.45);
+  }
+  .inbox-title h2 small {
+    display: block; font-size: 11px; font-weight: 500; opacity: .72;
+    text-transform: uppercase; letter-spacing: .08em; margin-top: 4px;
+  }
+
+  /* Filtros tipo chips */
+  .filter-chips {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(0,0,0,.32);
+    border: 1px solid rgba(255,255,255,.25);
+    color: rgba(255,255,255,.85);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 12.5px;
+    font-weight: 500;
+    text-decoration: none;
+    transition: all .2s ease;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  .chip:hover {
+    background: rgba(255,255,255,.18);
+    color: #fff;
+    text-decoration: none;
+    transform: translateY(-1px);
+  }
+  .chip.active {
+    background: linear-gradient(135deg, #2196ff 0%, #5e5ce6 100%);
+    border-color: rgba(255,255,255,.45);
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.40), 0 6px 16px rgba(0,122,255,.40);
+  }
+  .chip .n {
+    background: rgba(255,255,255,.18);
+    color: inherit;
+    border-radius: 999px;
+    padding: 0 7px;
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 18px;
+    text-align: center;
+  }
+  .chip.active .n { background: rgba(255,255,255,.28); }
+
+  /* Tabla glass */
+  .inbox-card {
+    background: rgba(20,24,38,.34);
+    border: 1px solid rgba(255,255,255,.20);
+    border-radius: 20px;
+    overflow: hidden;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow: 0 14px 40px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.25);
+  }
+  .inbox-table {
+    width: 100%; border-collapse: collapse;
+    color: rgba(255,255,255,.94);
+  }
+  .inbox-table thead th {
+    background: rgba(255,255,255,.06);
+    padding: 12px 14px;
+    text-align: left;
+    font-size: 11px; font-weight: 600;
+    color: rgba(255,255,255,.70);
+    text-transform: uppercase; letter-spacing: .07em;
+    border-bottom: 1px solid rgba(255,255,255,.14);
+    white-space: nowrap;
+  }
+  .inbox-table tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    font-size: 13.5px;
+    vertical-align: middle;
+  }
+  .inbox-table tbody tr {
+    transition: background .15s ease;
+  }
+  .inbox-table tbody tr:hover { background: rgba(255,255,255,.04); }
+  .inbox-table tbody tr:last-child td { border-bottom: 0; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.40), inset 0 -1px 0 rgba(0,0,0,.18);
+    white-space: nowrap;
+  }
+  .pill.PENDING_LEADER { background: var(--st-pl); }
+  .pill.PENDING_HR     { background: var(--st-ph); }
+  .pill.APPROVED       { background: var(--st-ap); }
+  .pill.REJECTED       { background: var(--st-rj); }
+  .pill.CANCELLED      { background: var(--st-cn); }
+
+  .pill.late {
+    background: linear-gradient(135deg, #ffcc00, #ff9500);
+    color: #2c1810;
+    font-weight: 700;
+    text-shadow: 0 1px 0 rgba(255,255,255,.20);
+  }
+
+  .action-row { display: inline-flex; gap: 6px; white-space: nowrap; }
+  .act-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid rgba(255,255,255,.28);
+    background: rgba(0,0,0,.32);
+    color: rgba(255,255,255,.95);
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s ease;
+    backdrop-filter: blur(10px);
+  }
+  .act-btn:hover {
+    background: rgba(255,255,255,.16);
+    transform: translateY(-1px);
+  }
+  .act-btn.approve {
+    background: linear-gradient(135deg, #34c759, #2eb350);
+    border-color: rgba(255,255,255,.40);
+    box-shadow: 0 6px 16px rgba(52,199,89,.40), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .act-btn.approve:hover { background: linear-gradient(135deg, #4dd370, #38c75a); }
+  .act-btn.reject {
+    background: linear-gradient(135deg, #ff5e54, #ff3b30);
+    border-color: rgba(255,255,255,.40);
+    box-shadow: 0 6px 16px rgba(255,59,48,.40), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .act-btn.reject:hover { background: linear-gradient(135deg, #ff7d75, #ff5751); }
+  .act-btn.approve-leader {
+    background: linear-gradient(135deg, #ff9500, #ff7d33);
+    border-color: rgba(255,255,255,.40);
+    box-shadow: 0 6px 16px rgba(255,149,0,.40), inset 0 1px 0 rgba(255,255,255,.35);
+  }
+  .act-btn:disabled,
+  .act-btn[disabled] {
+    background: rgba(255,255,255,.06) !important;
+    color: rgba(255,255,255,.40) !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: none !important;
+    border-color: rgba(255,255,255,.14) !important;
+  }
+  .act-disabled-msg {
+    display: inline-block;
+    font-size: 11px;
+    color: rgba(255,255,255,.55);
+    font-style: italic;
+  }
+
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: rgba(255,255,255,.70);
+  }
+  .empty .em-i { font-size: 48px; opacity: .55; margin-bottom: 12px; }
+  .empty .em-t { font-size: 16px; font-weight: 600; color: rgba(255,255,255,.92); margin-bottom: 4px; }
+  .empty .em-s { font-size: 13px; }
+
+  .cell-emp { font-weight: 600; }
+  .cell-emp .sub { display: block; font-size: 11px; font-weight: 500; color: rgba(255,255,255,.55); margin-top: 2px; }
+
+  .kind-tag {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 500;
+    color: rgba(255,255,255,.85);
+  }
+  .kind-tag .ico { font-size: 14px; }
+
+  @media (max-width: 960px) {
+    .inbox-table thead { display: none; }
+    .inbox-table, .inbox-table tbody, .inbox-table tr, .inbox-table td { display: block; width: 100%; }
+    .inbox-table tbody tr {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+    }
+    .inbox-table tbody td {
+      border: 0;
+      padding: 4px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .inbox-table tbody td:before {
+      content: attr(data-label);
+      font-size: 11px; font-weight: 600;
+      color: rgba(255,255,255,.55);
+      text-transform: uppercase; letter-spacing: .06em;
+    }
+    .inbox-table tbody td.cell-actions { justify-content: flex-end; }
+    .inbox-table tbody td.cell-actions:before { display: none; }
+    .action-row { flex-wrap: wrap; justify-content: flex-end; }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-{% if pending %}
-<table class="table table-hover">
-  <thead>
-    <tr><th>Trabajador</th><th>Tipo</th><th>Fecha</th><th>Subtipo</th><th>Hora</th><th>Origen</th><th>Motivo</th><th></th></tr>
-  </thead>
-  <tbody>
-  {% for r in pending %}
-    <tr>
-      <td>{{ r.employee.get_full_name|default:r.employee.username }}</td>
-      <td>{{ r.get_kind_display }}</td>
-      <td>{{ r.date|date:"d M Y" }}</td>
-      <td>{{ r.get_partial_type_display|default:"—" }}</td>
-      <td>{% if r.event_time %}{{ r.event_time|time:"H:i" }}{% else %}—{% endif %}</td>
-      <td>{{ r.get_origin_display }}</td>
-      <td>{{ r.reason|default:"—" }}</td>
-      <td class="text-right" style="white-space:nowrap;">
-        <form method="post" action="{% url 'vacations:hr_act' r.pk %}" style="display:inline;">
-          {% csrf_token %}
-          <button name="action" value="approve" class="btn btn-success btn-sm"><i class="fa fa-check"></i> Confirmar</button>
-          <button name="action" value="reject" class="btn btn-danger btn-sm"><i class="fa fa-times"></i> Rechazar</button>
-        </form>
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p class="text-muted">No hay solicitudes pendientes.</p>
-{% endif %}
+<div class="inbox-wrap">
+  <div class="inbox-header">
+    <div class="inbox-title">
+      <h2>Bandeja de RH<small>Todas las solicitudes</small></h2>
+    </div>
+    <div class="filter-chips">
+      <a class="chip {% if not status_filter %}active{% endif %}" href="?">
+        Todas <span class="n">{{ counts.ALL }}</span>
+      </a>
+      <a class="chip {% if status_filter == STATUS.PENDING_LEADER %}active{% endif %}" href="?status={{ STATUS.PENDING_LEADER }}">
+        Pendiente líder <span class="n">{{ counts.PENDING_LEADER }}</span>
+      </a>
+      <a class="chip {% if status_filter == STATUS.PENDING_HR %}active{% endif %}" href="?status={{ STATUS.PENDING_HR }}">
+        Pendiente RH <span class="n">{{ counts.PENDING_HR }}</span>
+      </a>
+      <a class="chip {% if status_filter == STATUS.APPROVED %}active{% endif %}" href="?status={{ STATUS.APPROVED }}">
+        Aprobadas <span class="n">{{ counts.APPROVED }}</span>
+      </a>
+      <a class="chip {% if status_filter == STATUS.REJECTED %}active{% endif %}" href="?status={{ STATUS.REJECTED }}">
+        Rechazadas <span class="n">{{ counts.REJECTED }}</span>
+      </a>
+      <a class="chip {% if status_filter == STATUS.CANCELLED %}active{% endif %}" href="?status={{ STATUS.CANCELLED }}">
+        Canceladas <span class="n">{{ counts.CANCELLED }}</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="inbox-card">
+    {% if requests %}
+    <table class="inbox-table">
+      <thead>
+        <tr>
+          <th>Trabajador</th>
+          <th>Tipo</th>
+          <th>Fecha</th>
+          <th>Subtipo / Hora</th>
+          <th>Estado</th>
+          <th>Origen</th>
+          <th style="text-align:right;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in requests %}
+        <tr>
+          <td data-label="Trabajador" class="cell-emp">
+            {{ r.employee.get_full_name|default:r.employee.username }}
+            {% if r.requested_to_leader %}
+              <span class="sub">Líder: {{ r.requested_to_leader.get_full_name|default:r.requested_to_leader.username }}</span>
+            {% else %}
+              <span class="sub">Sin líder asignado</span>
+            {% endif %}
+          </td>
+          <td data-label="Tipo">
+            <span class="kind-tag">
+              {% if r.kind == 'FULL_DAY' %}<span class="ico">🌴</span> Día completo
+              {% else %}<span class="ico">⏱️</span> Permiso
+              {% endif %}
+            </span>
+          </td>
+          <td data-label="Fecha">
+            {{ r.date|date:"d M Y" }}
+            {% if r.late_registration %}
+              <span class="pill late" title="Capturada el {{ r.created|date:'d M Y' }}">Fuera de tiempo</span>
+            {% endif %}
+          </td>
+          <td data-label="Subtipo">
+            {% if r.partial_type %}
+              {{ r.get_partial_type_display }}
+              {% if r.event_time %}<small style="color:rgba(255,255,255,.55);">· {{ r.event_time|time:"H:i" }}</small>{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td data-label="Estado">
+            <span class="pill {{ r.status }}">{{ r.get_status_display }}</span>
+          </td>
+          <td data-label="Origen">
+            <span style="font-size:12px;color:rgba(255,255,255,.78);">{{ r.get_origin_display }}</span>
+          </td>
+          <td data-label="Acciones" class="cell-actions" style="text-align:right;">
+            {% if r.status == STATUS.PENDING_HR %}
+              <form method="post" action="{% url 'vacations:hr_act' r.pk %}" class="action-row">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="hr_inbox">
+                <button name="action" value="approve" class="act-btn approve" title="Confirmar como RH">
+                  <i class="fa fa-check"></i> Confirmar
+                </button>
+                <button name="action" value="reject" class="act-btn reject">
+                  <i class="fa fa-times"></i> Rechazar
+                </button>
+              </form>
+            {% elif r.status == STATUS.PENDING_LEADER %}
+              {% if is_admin %}
+                <form method="post" action="{% url 'vacations:leader_act' r.pk %}" class="action-row">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="hr_inbox">
+                  <button name="action" value="approve" class="act-btn approve-leader" title="Admin: aprobar como líder">
+                    <i class="fa fa-check"></i> Aprobar como líder
+                  </button>
+                  <button name="action" value="reject" class="act-btn reject">
+                    <i class="fa fa-times"></i> Rechazar
+                  </button>
+                </form>
+              {% else %}
+                <span class="act-disabled-msg">Esperando aprobación del líder</span>
+              {% endif %}
+            {% else %}
+              <span class="act-disabled-msg">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+      <div class="em-i"><i class="fa-solid fa-inbox"></i></div>
+      <div class="em-t">No hay solicitudes</div>
+      <div class="em-s">
+        {% if status_filter %}No hay solicitudes en ese estado.{% else %}Cuando alguien solicite vacaciones aparecerá aquí.{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}

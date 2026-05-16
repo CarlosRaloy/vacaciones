@@ -9,7 +9,13 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .models import VacationRequest
-from .services import can_request_full_day, can_request_partial, get_balance
+from .services import (
+    can_request_full_day,
+    can_request_partial,
+    check_duplicate,
+    cycle_start,
+    get_balance,
+)
 
 
 def _is_admin(user) -> bool:
@@ -136,6 +142,8 @@ def events_json(request):
                 'captured_by': (
                     r.captured_by.get_full_name() or r.captured_by.username
                 ) if r.captured_by_id else '',
+                'late_registration': r.late_registration,
+                'late_note': r.late_note,
             },
         })
     return JsonResponse({'events': events})
@@ -170,24 +178,47 @@ def create_request(request):
         partial_type = None
 
     reason = request.POST.get('reason', '').strip()
+    late_note_raw = request.POST.get('late_note', '').strip()
 
     # Determinar trabajador objetivo y privilegios
     is_admin = _is_admin(request.user)
     captured_by = request.user
+    is_late = d < date.today()
+
+    # Trabajador puro no puede capturar fechas pasadas.
+    if is_late and not (as_leader or as_hr or is_admin):
+        return JsonResponse({
+            'success': False,
+            'message': 'No puedes registrar fechas pasadas. Pide a tu líder o a RH que la capture por ti.',
+        }, status=403)
 
     if as_leader:
         if not _is_leader(request.user):
             return HttpResponseForbidden('Solo líderes o admin.')
         emp_id = request.POST.get('employee_id')
         employee = get_object_or_404(User, pk=emp_id)
-        # Validar saldo del trabajador (a menos que sea admin)
-        if not is_admin:
+        # Validar duplicados antes del saldo (los duplicados no liberan saldo).
+        ok, msg = check_duplicate(employee, d, kind, partial_type)
+        if not ok:
+            return JsonResponse({'success': False, 'message': msg}, status=400)
+        # Validar saldo del trabajador. El admin puede saltarse el check SOLO
+        # cuando captura para OTRO trabajador (caso excepcional, p.ej. incapacidad).
+        # Si admin se captura para sí mismo, respeta el saldo como cualquiera.
+        bypass_balance = is_admin and employee.pk != request.user.pk
+        if not bypass_balance:
             ok, msg = (
                 can_request_full_day(employee) if kind == VacationRequest.Kind.FULL_DAY
                 else can_request_partial(employee)
             )
             if not ok:
                 return JsonResponse({'success': False, 'message': msg}, status=400)
+        if is_late:
+            emp_profile = getattr(employee, 'profile', None)
+            if d < cycle_start(emp_profile):
+                return JsonResponse({
+                    'success': False,
+                    'message': 'La fecha está fuera del ciclo actual del trabajador y no puede registrarse retroactivamente.',
+                }, status=400)
         req = VacationRequest.objects.create(
             employee=employee, kind=kind, partial_type=partial_type,
             date=d, event_time=event_time, reason=reason,
@@ -195,6 +226,8 @@ def create_request(request):
             origin=VacationRequest.Origin.LEADER,
             leader_acted_by=request.user, leader_acted_at=timezone.now(),
             captured_by=captured_by,
+            late_registration=is_late,
+            late_note=late_note_raw if is_late else '',
         )
     elif as_hr:
         # RH (o admin) captura a nombre del trabajador, pero NO firma por el líder.
@@ -202,7 +235,12 @@ def create_request(request):
             return HttpResponseForbidden('Solo RH o admin.')
         emp_id = request.POST.get('employee_id')
         employee = get_object_or_404(User, pk=emp_id)
-        if not is_admin:
+        ok, msg = check_duplicate(employee, d, kind, partial_type)
+        if not ok:
+            return JsonResponse({'success': False, 'message': msg}, status=400)
+        # El admin salta saldo solo cuando captura para otro trabajador.
+        bypass_balance = is_admin and employee.pk != request.user.pk
+        if not bypass_balance:
             ok, msg = (
                 can_request_full_day(employee) if kind == VacationRequest.Kind.FULL_DAY
                 else can_request_partial(employee)
@@ -210,6 +248,11 @@ def create_request(request):
             if not ok:
                 return JsonResponse({'success': False, 'message': msg}, status=400)
         emp_profile = getattr(employee, 'profile', None)
+        if is_late and d < cycle_start(emp_profile):
+            return JsonResponse({
+                'success': False,
+                'message': 'La fecha está fuera del ciclo actual del trabajador y no puede registrarse retroactivamente.',
+            }, status=400)
         leader = getattr(emp_profile, 'boss', None) if emp_profile else None
         req = VacationRequest.objects.create(
             employee=employee, kind=kind, partial_type=partial_type,
@@ -218,17 +261,27 @@ def create_request(request):
             origin=VacationRequest.Origin.EMPLOYEE,
             requested_to_leader=leader,
             captured_by=captured_by,
+            late_registration=is_late,
+            late_note=late_note_raw if is_late else '',
         )
     else:
-        # Trabajador (o admin para sí mismo)
-        if not is_admin:
-            ok, msg = (
-                can_request_full_day(request.user) if kind == VacationRequest.Kind.FULL_DAY
-                else can_request_partial(request.user)
-            )
-            if not ok:
-                return JsonResponse({'success': False, 'message': msg}, status=400)
+        # Trabajador (o admin para sí mismo). Si llegó aquí con is_late es porque es admin.
+        ok, msg = check_duplicate(request.user, d, kind, partial_type)
+        if not ok:
+            return JsonResponse({'success': False, 'message': msg}, status=400)
+        # Admin para sí mismo SÍ respeta su saldo — el bypass es solo on-behalf.
+        ok, msg = (
+            can_request_full_day(request.user) if kind == VacationRequest.Kind.FULL_DAY
+            else can_request_partial(request.user)
+        )
+        if not ok:
+            return JsonResponse({'success': False, 'message': msg}, status=400)
         profile = getattr(request.user, 'profile', None)
+        if is_late and d < cycle_start(profile):
+            return JsonResponse({
+                'success': False,
+                'message': 'La fecha está fuera del ciclo actual y no puede registrarse retroactivamente.',
+            }, status=400)
         leader = getattr(profile, 'boss', None) if profile else None
         req = VacationRequest.objects.create(
             employee=request.user, kind=kind, partial_type=partial_type,
@@ -237,6 +290,8 @@ def create_request(request):
             origin=VacationRequest.Origin.EMPLOYEE,
             requested_to_leader=leader,
             captured_by=captured_by,
+            late_registration=is_late,
+            late_note=late_note_raw if is_late else '',
         )
     return JsonResponse({'success': True, 'id': req.id, 'message': 'Solicitud registrada.'})
 
@@ -245,20 +300,55 @@ def create_request(request):
 def leader_inbox(request):
     if not _is_leader(request.user):
         return HttpResponseForbidden()
-    pending = VacationRequest.objects.filter(
+    qs = VacationRequest.objects.filter(
         status=VacationRequest.Status.PENDING_LEADER,
-    ).select_related('employee').order_by('date')
-    return render(request, 'vacations/leader_inbox.html', {'pending': pending})
+    ).select_related('employee', 'requested_to_leader')
+    # El líder solo ve solicitudes asignadas a él; admin ve todas.
+    if not _is_admin(request.user):
+        qs = qs.filter(requested_to_leader=request.user)
+    pending = qs.order_by('date')
+    return render(request, 'vacations/leader_inbox.html', {
+        'pending': pending,
+        'is_admin': _is_admin(request.user),
+    })
 
 
 @login_required
 def hr_inbox(request):
     if not _is_hr(request.user):
         return HttpResponseForbidden()
-    pending = VacationRequest.objects.filter(
-        status=VacationRequest.Status.PENDING_HR,
-    ).select_related('employee').order_by('date')
-    return render(request, 'vacations/hr_inbox.html', {'pending': pending})
+    # RH y admin ven TODAS las solicitudes; el botón de aprobar se activa
+    # contextualmente según el estado (y rol).
+    status_filter = request.GET.get('status', '')
+    qs = VacationRequest.objects.select_related(
+        'employee', 'requested_to_leader', 'leader_acted_by', 'hr_acted_by',
+    )
+    valid_statuses = dict(VacationRequest.Status.choices)
+    if status_filter in valid_statuses:
+        qs = qs.filter(status=status_filter)
+    requests_list = qs.order_by('-date', '-created')
+    counts = {
+        s: VacationRequest.objects.filter(status=s).count()
+        for s, _ in VacationRequest.Status.choices
+    }
+    counts['ALL'] = VacationRequest.objects.count()
+    return render(request, 'vacations/hr_inbox.html', {
+        'requests': requests_list,
+        'is_admin': _is_admin(request.user),
+        'status_filter': status_filter,
+        'counts': counts,
+        'STATUS': VacationRequest.Status,
+    })
+
+
+_REDIRECT_TARGETS = {'leader_inbox', 'hr_inbox'}
+
+
+def _next_redirect(request, default: str):
+    target = request.POST.get('next', '') or default
+    if target not in _REDIRECT_TARGETS:
+        target = default
+    return redirect(f'vacations:{target}')
 
 
 @login_required
@@ -267,10 +357,14 @@ def leader_act(request, pk):
     if not _is_leader(request.user):
         return HttpResponseForbidden()
     req = get_object_or_404(VacationRequest, pk=pk)
+    # Un líder solo puede actuar sobre solicitudes asignadas a él; admin bypass.
+    if not _is_admin(request.user) and req.requested_to_leader_id != request.user.id:
+        messages.error(request, 'Esta solicitud no está asignada a ti.')
+        return _next_redirect(request, 'leader_inbox')
     action = request.POST.get('action')
     if req.status != VacationRequest.Status.PENDING_LEADER:
         messages.error(request, 'La solicitud ya no está pendiente del líder.')
-        return redirect('vacations:leader_inbox')
+        return _next_redirect(request, 'leader_inbox')
     if action == 'approve':
         req.status = VacationRequest.Status.PENDING_HR
     elif action == 'reject':
@@ -281,7 +375,7 @@ def leader_act(request, pk):
     req.leader_acted_at = timezone.now()
     req.save()
     messages.success(request, 'Acción registrada.')
-    return redirect('vacations:leader_inbox')
+    return _next_redirect(request, 'leader_inbox')
 
 
 @login_required
@@ -293,7 +387,7 @@ def hr_act(request, pk):
     action = request.POST.get('action')
     if req.status != VacationRequest.Status.PENDING_HR:
         messages.error(request, 'La solicitud ya no está pendiente de RH.')
-        return redirect('vacations:hr_inbox')
+        return _next_redirect(request, 'hr_inbox')
     if action == 'approve':
         req.status = VacationRequest.Status.APPROVED
     elif action == 'reject':
@@ -304,7 +398,7 @@ def hr_act(request, pk):
     req.hr_acted_at = timezone.now()
     req.save()
     messages.success(request, 'Acción registrada.')
-    return redirect('vacations:hr_inbox')
+    return _next_redirect(request, 'hr_inbox')
 
 
 @login_required

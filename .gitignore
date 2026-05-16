@@ -88,3 +88,7 @@ coverage.xml
 *.pem
 *.key
 secrets.json
+
+# Claude Code (instrucciones locales)
+CLAUDE.md
+.claude/

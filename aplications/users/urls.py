@@ -44,4 +44,7 @@ urlpatterns = [
         name='block'
     ),
 
+    path('positions/', views.positions_panel, name='positions'),
+    path('areas/', views.areas_panel, name='areas'),
+    path('signature/', views.signature_act, name='signature'),
 ]

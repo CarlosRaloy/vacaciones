@@ -308,20 +308,29 @@
   .mac-on-behalf summary { cursor: pointer; font-weight: 600; color: var(--mac-orange); }
   .mac-on-behalf[open] summary { margin-bottom: 8px; }
 
-  /* ──────────────────── Inspector lateral ──────────────────── */
+  /* ──────────────────── Inspector — modal centrado ──────────────────── */
   .mac-inspector {
-    position: fixed; top: 0; right: 0; height: 100vh;
-    width: 380px; max-width: 90vw;
+    position: fixed; top: 50%; left: 50%;
+    width: 480px; max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 80px);
     background: var(--mac-panel-2);
     backdrop-filter: blur(20px) saturate(180%);
-    border-left: 1px solid var(--mac-stroke);
-    box-shadow: -10px 0 30px rgba(0,0,0,.08);
-    transform: translateX(100%);
-    transition: transform .25s cubic-bezier(.4,0,.2,1);
+    border: 1px solid var(--mac-stroke);
+    border-radius: 16px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.30);
+    transform: translate(-50%, -50%) scale(.95);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .22s ease, transform .25s cubic-bezier(.4,0,.2,1);
     z-index: 1050;
     display: flex; flex-direction: column;
+    overflow: hidden;
   }
-  .mac-inspector.open { transform: translateX(0); }
+  .mac-inspector.open {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+  }
   .mac-inspector header {
     padding: 16px 18px;
     border-bottom: 1px solid var(--mac-stroke);
@@ -367,6 +376,634 @@
   /* Animación entrada */
   @keyframes mac-fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
   .mac-cal > * { animation: mac-fade-in .25s ease both; }
+
+  /* ════════════════════════════════════════════════════════════
+     LIQUID GLASS — visionOS dark mode
+     Wallpaper claro + capa oscura intermedia + paneles cristalinos
+     con texto blanco (estilo visionOS / iOS 26 Liquid Glass).
+     ════════════════════════════════════════════════════════════ */
+  :root {
+    --lg-text:        rgba(255,255,255,.98);
+    --lg-text-2:      rgba(255,255,255,.88);
+    --lg-text-3:      rgba(255,255,255,.72);
+    --lg-text-shadow: 0 1px 3px rgba(0,0,0,.55), 0 0 1px rgba(0,0,0,.35);
+    --lg-glass:       rgba(255,255,255,0.10);
+    --lg-glass-2:     rgba(255,255,255,0.20);
+    --lg-glass-dark:  rgba(0,0,0,0.32);
+    /* Sidebar — paleta grafito azulado profesional con buena legibilidad */
+    --lg-panel-dark:  rgba(20,24,38,0.48);
+    --lg-card-light:  rgba(255,255,255,0.10);
+    --lg-stroke:      rgba(255,255,255,0.32);
+    --lg-stroke-2:    rgba(255,255,255,0.18);
+    --lg-inset:       inset 0 1px 0 rgba(255,255,255,.45),
+                      inset 0 -1px 0 rgba(0,0,0,.25);
+    --lg-blur:        blur(40px) saturate(180%);
+    --lg-blur-strong: blur(60px) saturate(200%);
+    --lg-r:           20px;
+    --lg-r-sm:        14px;
+    --lg-shadow:      0 10px 40px rgba(0,0,0,.40);
+    --lg-shadow-lift: 0 20px 60px rgba(0,0,0,.50);
+  }
+
+  /* Wallpaper + overlay oscuro suave (modo noche). El wallpaper queda
+     legible y los paneles glass oscuros toman contraste con texto blanco. */
+  #content.content {
+    background:
+      linear-gradient(180deg, rgba(10,10,18,.35) 0%, rgba(10,10,18,.22) 100%),
+      url("{% static 'img/bg_calendar.webp' %}") center center / cover no-repeat fixed,
+      #0a0a14;
+    color: var(--lg-text);
+  }
+  .mac-cal { background: transparent; color: var(--lg-text); }
+
+  /* Tipografía sobre cristal — todo blanco con jerarquía por alpha */
+  .mac-name,
+  .mac-title,
+  .mac-stat .val,
+  .mac-inspector header h3,
+  .mac-inspector .row .v,
+  .mac-sheet .modal-title,
+  .mac-kind-toggle label .ttl,
+  .mac-filter { color: var(--lg-text); }
+  .mac-greet,
+  .mac-section-title,
+  .mac-stat .lbl,
+  .mac-partials .ttl,
+  .mac-title small,
+  .mac-field label { color: var(--lg-text-2); }
+  .mac-hint,
+  .mac-partials .hint,
+  .mac-kind-toggle label .desc,
+  .mac-inspector .row .k { color: var(--lg-text-3); }
+  .mac-hint.warn { color: #ffb86b; }
+  .fc .fc-daygrid-day-number { color: var(--lg-text); }
+  .fc .fc-col-header-cell-cushion { color: var(--lg-text-2); }
+  .fc .fc-day-other .fc-daygrid-day-number { color: var(--lg-text-3); opacity: 1; }
+
+  /* Paneles principales — glass casi cristalino.
+     .mac-main: SIN blur (cristal puro, wallpaper nítido a través).
+     .mac-sidebar: con blur (es un panel de info, queda más denso). */
+  .mac-sidebar {
+    background: var(--lg-panel-dark);
+    border: 1px solid rgba(255,255,255,0.20);
+    border-radius: var(--lg-r);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    box-shadow: var(--lg-shadow), var(--lg-inset);
+  }
+  /* Textos del sidebar sobre wallpaper: shadow sutil para legibilidad */
+  .mac-sidebar .mac-greet,
+  .mac-sidebar .mac-section-title,
+  .mac-sidebar .mac-stat .lbl,
+  .mac-sidebar .mac-partials .ttl,
+  .mac-sidebar .mac-partials .hint,
+  .mac-sidebar .mac-filter,
+  .mac-sidebar .mac-stat .val,
+  .mac-sidebar .mac-name { text-shadow: var(--lg-text-shadow); }
+  /* Calendario / toolbar también, son la zona más expuesta al wallpaper */
+  .mac-title, .mac-title small,
+  .fc .fc-daygrid-day-number,
+  .fc .fc-col-header-cell-cushion { text-shadow: var(--lg-text-shadow); }
+  .mac-main {
+    background: var(--lg-glass);
+    border: 1px solid var(--lg-stroke);
+    border-radius: var(--lg-r);
+    box-shadow: var(--lg-shadow), var(--lg-inset);
+    backdrop-filter: blur(2px) saturate(110%);
+    -webkit-backdrop-filter: blur(2px) saturate(110%);
+  }
+
+  /* Saldo card — sigue siendo gradient azul con reflejo */
+  .mac-balance {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--lg-r-sm);
+    box-shadow:
+      0 8px 28px rgba(0,122,255,.40),
+      inset 0 1px 0 rgba(255,255,255,.45),
+      inset 0 -1px 0 rgba(0,0,0,.20);
+  }
+  .mac-balance::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,.22) 0%, transparent 55%);
+    pointer-events: none;
+  }
+  .mac-balance > * { position: relative; }
+
+  /* Paneles secundarios — vidrio claro sobre el sidebar oscuro (capas) */
+  .mac-stat,
+  .mac-partials {
+    background: var(--lg-card-light);
+    border: 1px solid rgba(255,255,255,0.22);
+    border-radius: var(--lg-r-sm);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.30),
+      inset 0 -1px 0 rgba(0,0,0,.12);
+  }
+  .mac-on-behalf {
+    background: rgba(255,149,0,.20);
+    border: 1px solid rgba(255,149,0,.45);
+    border-radius: var(--lg-r-sm);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.30);
+  }
+  .mac-on-behalf summary { color: #ffb86b; }
+  .mac-partials .pill {
+    background: rgba(0,122,255,.32);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.30);
+  }
+  .mac-dot { border-color: rgba(255,255,255,.30); }
+  .mac-dot.on {
+    background: var(--mac-accent);
+    border-color: var(--mac-accent);
+    box-shadow: 0 0 12px rgba(0,122,255,.55);
+  }
+
+  /* Scope select — píldora oscura */
+  .mac-scope {
+    background: var(--lg-glass-dark);
+    border: 1px solid var(--lg-stroke);
+    color: var(--lg-text);
+    border-radius: 10px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .mac-scope option { background: #1a1a22; color: var(--lg-text); }
+
+  /* Toolbar — capa cristalina superior */
+  .mac-toolbar {
+    background: rgba(255,255,255,0.06);
+    border-bottom: 1px solid rgba(255,255,255,.14);
+    backdrop-filter: var(--lg-blur);
+    -webkit-backdrop-filter: var(--lg-blur);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.30);
+  }
+
+  /* Segmented control (Mes/Lista) — píldora oscura */
+  .mac-seg {
+    background: var(--lg-glass-dark);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 12px;
+    padding: 3px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+  .mac-seg button {
+    color: var(--lg-text-2);
+    border-radius: 9px;
+    transition: all .22s cubic-bezier(.4, 0, .2, 1);
+  }
+  .mac-seg button.active {
+    background: linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,.18));
+    color: var(--lg-text);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.55),
+      inset 0 -1px 0 rgba(0,0,0,.10),
+      0 2px 8px rgba(0,0,0,.30);
+  }
+  .mac-seg button:not(.active):hover {
+    background: rgba(255,255,255,0.14);
+    color: var(--lg-text);
+  }
+
+  /* Botones — píldoras vibrantes con hover expresivo */
+  .mac-btn {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,.40);
+    color: var(--lg-text);
+    border-radius: 12px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.45),
+      inset 0 -1px 0 rgba(0,0,0,.12),
+      0 4px 12px rgba(0,0,0,.20);
+    transition: all .22s cubic-bezier(.4, 0, .2, 1);
+  }
+  .mac-btn:hover {
+    background: rgba(255,255,255,0.22);
+    border-color: rgba(255,255,255,.60);
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.55),
+      inset 0 -1px 0 rgba(0,0,0,.10),
+      0 8px 20px rgba(0,0,0,.30);
+  }
+  .mac-btn:active { transform: translateY(0) scale(.97); }
+
+  .mac-btn.primary {
+    background: linear-gradient(135deg, #2196ff 0%, #5e5ce6 100%);
+    border-color: rgba(255,255,255,.45);
+    color: #fff;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.50),
+      inset 0 -1px 0 rgba(0,0,0,.18),
+      0 10px 28px rgba(0,122,255,.55);
+  }
+  .mac-btn.primary:hover {
+    background: linear-gradient(135deg, #4dabff 0%, #7470ff 100%);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.65),
+      inset 0 -1px 0 rgba(0,0,0,.18),
+      0 14px 36px rgba(0,122,255,.70);
+  }
+
+  .mac-btn.danger {
+    background: linear-gradient(135deg, #ff5e54 0%, #ff3b30 100%);
+    border-color: rgba(255,255,255,.40);
+    color: #fff;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.40),
+      inset 0 -1px 0 rgba(0,0,0,.18),
+      0 10px 28px rgba(255,59,48,.55);
+  }
+  .mac-btn.danger:hover {
+    background: linear-gradient(135deg, #ff7d75 0%, #ff5751 100%);
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.50),
+      0 14px 36px rgba(255,59,48,.70);
+  }
+
+  /* FullCalendar — todos los contenedores transparentes para que el
+     panel glass padre muestre el wallpaper. FC pinta blanco en varios
+     contenedores anidados, no solo en --fc-page-bg-color, así que hay
+     que forzar transparente con !important en cada uno. */
+  .fc {
+    --fc-page-bg-color: transparent;
+    --fc-neutral-bg-color: transparent;
+    --fc-border-color: rgba(255,255,255,.18);
+    --fc-today-bg-color: rgba(0,122,255,.22);
+    --fc-event-text-color: #fff;
+    --fc-list-event-hover-bg-color: rgba(255,255,255,.08);
+  }
+
+  /* Transparencia agresiva sobre cualquier contenedor interno de FC */
+  .fc,
+  .fc-view-harness, .fc-view-harness > *,
+  .fc-view, .fc-view > *,
+  .fc-daygrid, .fc-daygrid > *,
+  .fc-scrollgrid, .fc-scrollgrid > *,
+  .fc-scrollgrid-section, .fc-scrollgrid-section > *,
+  .fc-scrollgrid-section-body, .fc-scrollgrid-section-header,
+  .fc-scrollgrid-sync-table, .fc-scrollgrid-sync-table > *,
+  .fc-daygrid-body, .fc-daygrid-body > *,
+  .fc-daygrid-body table, .fc-daygrid-body table > *,
+  .fc-scroller, .fc-scroller-harness, .fc-scroller-liquid-absolute,
+  .fc tbody, .fc thead, .fc tr,
+  .fc-theme-standard td, .fc-theme-standard th {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  #calendar { background: transparent; padding: 12px 16px 16px; }
+  .fc-theme-standard .fc-scrollgrid { border-color: rgba(255,255,255,.18) !important; }
+  .fc-theme-standard td,
+  .fc-theme-standard th { border-color: rgba(255,255,255,.12) !important; }
+
+  .fc .fc-col-header-cell {
+    background: rgba(255,255,255,.08) !important;
+  }
+  .fc .fc-daygrid-day-frame { transition: background .18s ease; }
+  .fc .fc-daygrid-day:hover .fc-daygrid-day-frame { background: rgba(255,255,255,.14) !important; }
+  .fc .fc-day-today { background: transparent !important; }
+  .fc .fc-day-today .fc-daygrid-day-frame { background: rgba(0,122,255,.22) !important; }
+  .fc .fc-day-other .fc-daygrid-day-frame { background: rgba(0,0,0,.20) !important; }
+
+  /* Eventos cristalinos — borde luminoso + sombra profunda */
+  .fc-daygrid-event {
+    border: 1px solid rgba(255,255,255,.32) !important;
+    border-radius: 12px !important;
+    padding: 3px 10px !important;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.45),
+      inset 0 -1px 0 rgba(0,0,0,.20),
+      0 4px 12px rgba(0,0,0,.35) !important;
+  }
+  .fc-daygrid-event:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.55),
+      inset 0 -1px 0 rgba(0,0,0,.20),
+      0 8px 20px rgba(0,0,0,.45) !important;
+  }
+  .fc-list-day-cushion {
+    background: rgba(255,255,255,.10) !important;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    color: var(--lg-text) !important;
+  }
+  .fc-list-event:hover td { background: rgba(255,255,255,.08); }
+  .fc, .fc table, .fc .fc-list-event-title a { color: var(--lg-text) !important; }
+
+  /* Modal */
+  .mac-sheet.modal { backdrop-filter: blur(20px); }
+  .mac-sheet .modal-content {
+    background: rgba(22,22,32,0.55);
+    border: 1px solid var(--lg-stroke);
+    border-radius: var(--lg-r);
+    backdrop-filter: var(--lg-blur-strong);
+    -webkit-backdrop-filter: var(--lg-blur-strong);
+    box-shadow:
+      var(--lg-shadow-lift),
+      inset 0 1px 0 rgba(255,255,255,.30);
+    color: var(--lg-text);
+  }
+  .mac-sheet .modal-header,
+  .mac-sheet .modal-footer {
+    background: rgba(255,255,255,.04);
+    border-color: rgba(255,255,255,.14);
+  }
+  .mac-sheet .modal-body { background: transparent; }
+
+  /* Botón X — círculo glass con animación rotate al hover */
+  .mac-sheet .close-x {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.22);
+    background: rgba(255,255,255,.08);
+    color: var(--lg-text-2);
+    font-size: 13px;
+    line-height: 1;
+    padding: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all .22s cubic-bezier(.4, 0, .2, 1);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.20);
+  }
+  .mac-sheet .close-x:hover {
+    background: rgba(255,75,65,.55);
+    border-color: rgba(255,75,65,.70);
+    color: #fff;
+    transform: rotate(90deg) scale(1.05);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.30),
+      0 6px 16px rgba(255,59,48,.40);
+  }
+  .mac-sheet .close-x i { font-size: 13px; line-height: 1; }
+
+  /* Separación clara de título y descripción en los toggles */
+  .mac-kind-toggle label .ttl { display: block; }
+  .mac-kind-toggle label .desc {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    opacity: .85;
+    line-height: 1.3;
+  }
+
+  /* Hint de sugerencia inteligente — pequeño badge con bombillita */
+  .mac-suggestion {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: linear-gradient(135deg, rgba(0,122,255,.20), rgba(94,92,230,.18));
+    border: 1px solid rgba(0,122,255,.40);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--lg-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.20);
+    animation: mac-fade-in .25s ease both;
+  }
+  .mac-suggestion i { color: #ffcc00; }
+
+  /* Warning amarillo — caso especial (día completo hoy) */
+  .mac-warning {
+    margin-top: 10px;
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(255,149,0,.22), rgba(255,193,7,.16));
+    border: 1px solid rgba(255,149,0,.55);
+    border-radius: 12px;
+    font-size: 12.5px;
+    color: var(--lg-text);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.20),
+      0 4px 14px rgba(255,149,0,.18);
+    animation: mac-fade-in .25s ease both;
+  }
+  .mac-warning > i {
+    color: #ffcc00;
+    font-size: 18px;
+    flex: 0 0 auto;
+    margin-top: 1px;
+    text-shadow: 0 1px 4px rgba(255,149,0,.50);
+  }
+  .mac-warning strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--lg-text);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .mac-warning p {
+    margin: 0;
+    line-height: 1.45;
+    color: var(--lg-text-2);
+  }
+  .mac-warning a {
+    color: #66b3ff;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .mac-warning a:hover { color: #99ccff; }
+
+  /* Variante rojo — bloqueante (saldo cero) */
+  .mac-warning.danger {
+    background: linear-gradient(135deg, rgba(255,59,48,.24), rgba(255,75,65,.18));
+    border-color: rgba(255,59,48,.60);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.20),
+      0 4px 14px rgba(255,59,48,.22);
+  }
+  .mac-warning.danger > i { color: #ff5e54; text-shadow: 0 1px 4px rgba(255,59,48,.50); }
+
+  /* Estado disabled del botón principal cuando no hay saldo */
+  .mac-btn[disabled],
+  .mac-btn.primary[disabled] {
+    background: rgba(255,255,255,.10) !important;
+    color: var(--lg-text-3) !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10) !important;
+    border-color: rgba(255,255,255,.18) !important;
+  }
+  .mac-btn[disabled]:hover { transform: none !important; }
+
+  /* Inputs y selects */
+  .mac-field input,
+  .mac-field select,
+  .mac-field textarea {
+    background: rgba(0,0,0,.32);
+    border: 1px solid rgba(255,255,255,.22);
+    color: var(--lg-text);
+    border-radius: 10px;
+  }
+  .mac-field input::placeholder,
+  .mac-field textarea::placeholder { color: var(--lg-text-3); }
+  .mac-field input:focus,
+  .mac-field select:focus,
+  .mac-field textarea:focus {
+    background: rgba(0,0,0,.45);
+    border-color: rgba(0,122,255,.65);
+    box-shadow: 0 0 0 3px rgba(0,122,255,.22);
+  }
+  .mac-field select option { background: #1a1a22; color: var(--lg-text); }
+
+  /* Kind toggle */
+  .mac-kind-toggle label {
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.20);
+    color: var(--lg-text);
+    border-radius: var(--lg-r-sm);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22);
+  }
+  .mac-kind-toggle input:checked + label {
+    background: rgba(0,122,255,.22);
+    border-color: rgba(0,122,255,.70);
+    box-shadow:
+      0 0 0 3px rgba(0,122,255,.18),
+      inset 0 1px 0 rgba(255,255,255,.30);
+  }
+
+  /* Inspector — modal centrado glassmorfismo (override liquid glass) */
+  .mac-inspector {
+    background: rgba(20,24,38,0.38);
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: var(--lg-r);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow:
+      0 24px 64px rgba(0,0,0,.45),
+      inset 0 1px 0 rgba(255,255,255,.40),
+      inset 0 -1px 0 rgba(0,0,0,.15);
+    color: var(--lg-text);
+  }
+  .mac-inspector header,
+  .mac-inspector footer {
+    background: rgba(255,255,255,.04);
+    border-color: rgba(255,255,255,.14);
+  }
+  .mac-inspector .row { border-bottom-color: rgba(255,255,255,.10); }
+  .mac-inspector .close-x { color: var(--lg-text-2); }
+  .mac-inspector .close-x:hover { background: rgba(255,255,255,.10); color: var(--lg-text); }
+  .mac-inspector .status-pill {
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.45),
+      inset 0 -1px 0 rgba(0,0,0,.15);
+  }
+
+  /* Scrim — suave, deja ver el calendario detrás del modal */
+  .mac-scrim {
+    background: rgba(0,0,0,.28);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+
+  /* ════════════════════════════════════════════════════════════
+     RESPONSIVE — tablet (≤960) y móvil (≤640)
+     ════════════════════════════════════════════════════════════ */
+  @media (max-width: 960px) {
+    .mac-cal {
+      grid-template-columns: 1fr;
+      padding: 12px;
+      gap: 12px;
+    }
+    .mac-sidebar {
+      position: static;
+      top: auto;
+      padding: 14px;
+    }
+    .mac-balance .val { font-size: 28px; }
+    .mac-toolbar {
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+    .mac-title { text-align: left; font-size: 18px; }
+    .mac-title small { font-size: 10px; }
+    .mac-seg { justify-self: center; }
+    .mac-nav {
+      justify-self: stretch;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .mac-btn { padding: 6px 10px; font-size: 12px; }
+    .mac-btn.primary { font-size: 13px; }
+    #calendar { padding: 8px 8px 10px; }
+    .fc .fc-col-header-cell-cushion { font-size: 10px; padding: 6px 2px; }
+    .fc .fc-daygrid-day-number { font-size: 11px; padding: 4px 6px; }
+    .fc-daygrid-event { font-size: 10.5px !important; padding: 2px 6px !important; }
+    .mac-inspector {
+      width: calc(100vw - 24px);
+      max-width: calc(100vw - 24px);
+      max-height: calc(100vh - 60px);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .mac-cal { padding: 8px; gap: 10px; }
+    .mac-sidebar { padding: 12px; border-radius: 16px; }
+    .mac-main { border-radius: 16px; }
+    .mac-balance { padding: 12px 14px; }
+    .mac-balance .val { font-size: 24px; }
+    .mac-balance .sub { font-size: 10px; }
+    .mac-stats { gap: 6px; }
+    .mac-stat { padding: 8px 10px; }
+    .mac-stat .val { font-size: 17px; }
+    .mac-title { font-size: 16px; }
+    /* En móvil, esconder las etiquetas DOM/LUN/MAR (muy estrechas) y dejar solo D/L/M */
+    .fc .fc-col-header-cell-cushion {
+      font-size: 9px;
+      letter-spacing: 0;
+      padding: 5px 1px;
+    }
+    .fc .fc-daygrid-day-number {
+      font-size: 10px;
+      padding: 3px 4px;
+    }
+    .fc .fc-day-today .fc-daygrid-day-number {
+      width: 20px; height: 20px;
+      line-height: 11px;
+      font-size: 10px;
+      margin: 3px 3px 0 auto;
+    }
+    .fc-daygrid-event {
+      font-size: 9.5px !important;
+      padding: 1px 5px !important;
+      border-radius: 8px !important;
+    }
+    /* Modal full-width */
+    .mac-sheet .modal-dialog { margin: 16px 10px; max-width: calc(100vw - 20px); }
+    .mac-sheet .modal-body { padding: 14px; }
+    .mac-kind-toggle { grid-template-columns: 1fr; }
+  }
+
+  /* Pantallas estrechas extremas (≤380): aún más compacto */
+  @media (max-width: 380px) {
+    .mac-cal { padding: 6px; }
+    .mac-toolbar { padding: 10px 10px; }
+    .mac-nav { gap: 4px; }
+    .mac-btn { padding: 5px 8px; font-size: 11px; }
+    .mac-btn i { margin-right: 2px; }
+  }
+
+  /* Tap targets más cómodos en touch */
+  @media (hover: none) and (pointer: coarse) {
+    .mac-btn { min-height: 36px; }
+    .mac-filter { padding: 8px 0; }
+    .fc-daygrid-event { padding: 4px 8px !important; }
+  }
 </style>
 {% endblock %}
 
@@ -463,9 +1100,9 @@
             <label>Tipo</label>
             <div class="mac-kind-toggle">
               <input type="radio" name="kind" id="k-full" value="FULL_DAY" checked>
-              <label for="k-full"><span class="ico">🌴</span><span class="ttl">Día completo</span><span class="desc">Descuenta del saldo</span></label>
+              <label for="k-full"><span class="ico">🌴</span><span class="ttl">Día completo</span><span class="desc">Descuenta 1 día de vacaciones</span></label>
               <input type="radio" name="kind" id="k-partial" value="PARTIAL">
-              <label for="k-partial"><span class="ico">⏱️</span><span class="ttl">Permiso</span><span class="desc">3 = 1 día</span></label>
+              <label for="k-partial"><span class="ico">⏱️</span><span class="ttl">Permiso</span><span class="desc">3 permisos = 1 día</span></label>
             </div>
           </div>
 
@@ -475,6 +1112,10 @@
               <option value="LATE">Llegada tarde (08:00–11:00)</option>
               <option value="EARLY_LEAVE">Salida anticipada (14:00–18:00)</option>
             </select>
+            <div class="mac-suggestion" id="hint-suggestion" style="display:none;">
+              <i class="fa fa-lightbulb"></i>
+              <span id="hint-suggestion-text"></span>
+            </div>
           </div>
 
           <div class="mac-field" id="grp-time" style="display:none;">
@@ -486,6 +1127,29 @@
           <div class="mac-field">
             <label>Fecha</label>
             <input type="date" name="date" id="f-date" required>
+            <div class="mac-hint warn" id="hint-late-blocked" style="display:none;">
+              ⚠️ La fecha seleccionada ya pasó. No puedes registrar fechas pasadas; pide a tu líder o a RH que la capture por ti.
+            </div>
+            <div class="mac-warning" id="hint-fullday-today" style="display:none;">
+              <i class="fa fa-exclamation-triangle"></i>
+              <div>
+                <strong>¿Día completo para hoy?</strong>
+                <p>Esto solo aplica a casos especiales (incapacidad, emergencia familiar, etc.). Si solo necesitas ausentarte unas horas, considera un <a href="#" id="link-switch-permit">permiso</a> — no te descuenta un día completo de vacaciones.</p>
+              </div>
+            </div>
+            <div class="mac-warning danger" id="hint-no-balance" style="display:none;">
+              <i class="fa fa-ban"></i>
+              <div>
+                <strong>Ya no tienes días disponibles</strong>
+                <p id="no-balance-text"></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mac-field" id="grp-late" style="display:none;">
+            <label>Motivo del registro tardío</label>
+            <textarea name="late_note" id="f-late-note" rows="2" placeholder="Accidente, incapacidad, olvido al marcar…"></textarea>
+            <div class="mac-hint">La fecha ya pasó. Esta solicitud quedará marcada como <b>fuera de tiempo</b> para que RH la revise.</div>
           </div>
 
           <div class="mac-field" id="grp-leader">
@@ -558,6 +1222,12 @@ const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 const eventsUrl = "{% url 'vacations:events_json' %}";
 const createUrl = "{% url 'vacations:create' %}";
 const IS_PRIV   = {{ is_leader|yesno:"true,false" }} || {{ is_hr|yesno:"true,false" }} || {{ is_admin|yesno:"true,false" }};
+const BALANCE = {
+  remaining: {{ balance.remaining|default:0 }},
+  allowance: {{ balance.allowance|default:0 }},
+  partialsRemainder: {{ balance.partials_remainder|default:0 }},
+  cycleEnd: "{{ balance.cycle_end|date:'d/m/Y' }}",
+};
 
 let calendar;
 const statusFilter = new Set(['PENDING_LEADER','PENDING_HR','APPROVED']);
@@ -612,7 +1282,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Form
   document.querySelectorAll('input[name=kind]').forEach(r => r.onchange = onKindChange);
   document.getElementById('f-partial-type').onchange = applyTimeBounds;
+  document.getElementById('f-date').addEventListener('input', onDateChange);
+  document.getElementById('f-date').addEventListener('change', onDateChange);
   document.getElementById('newForm').onsubmit = submitNew;
+  // Atajo "permiso" dentro del warning de día completo hoy
+  const linkSwitch = document.getElementById('link-switch-permit');
+  if (linkSwitch) linkSwitch.onclick = (e) => {
+    e.preventDefault();
+    document.getElementById('k-partial').checked = true;
+    onKindChange();
+  };
+  // Cambios en "actuar como líder/RH" — recalcular bloqueo de saldo
+  document.querySelectorAll('input[name=behalf_mode]').forEach(r => {
+    r.addEventListener('change', checkNoBalanceWarning);
+  });
 
   // Scope
   const scopeSel = document.getElementById('scope');
@@ -639,11 +1322,159 @@ function onKindChange() {
   const isPartial = kind === 'PARTIAL';
   document.getElementById('grp-partial').style.display = isPartial ? '' : 'none';
   document.getElementById('grp-time').style.display    = isPartial ? '' : 'none';
-  if (isPartial) applyTimeBounds();
+  if (isPartial) {
+    applySmartSuggestion();
+    applyTimeBounds();
+  } else {
+    document.getElementById('hint-suggestion').style.display = 'none';
+  }
+  checkFullDayTodayWarning();
+}
+
+/* Warning: día completo solicitado para hoy mismo (caso especial). */
+function checkFullDayTodayWarning() {
+  const dateStr = document.getElementById('f-date').value;
+  const kindRadio = document.querySelector('input[name=kind]:checked');
+  const isFullToday = kindRadio && kindRadio.value === 'FULL_DAY' && dateStr === todayStr();
+  document.getElementById('hint-fullday-today').style.display = isFullToday ? '' : 'none';
+  checkNoBalanceWarning();
+}
+
+/* Banner rojo bloqueante cuando el usuario (no privilegiado) no tiene saldo
+   y el tipo elegido lo requiere. Trabajadores con saldo cero pidiendo FULL_DAY:
+   imposible. PARTIAL también lo bloqueamos cuando completaría grupo de 3 sin saldo
+   (igual lo rechaza el backend, pero adelantamos el aviso). */
+function checkNoBalanceWarning() {
+  const banner = document.getElementById('hint-no-balance');
+  const text = document.getElementById('no-balance-text');
+  const submitBtn = document.querySelector('#newForm button[type=submit]');
+  // Si el usuario es admin, no aplicamos el bloqueo (admin puede saltarse saldo)
+  if (IS_PRIV && {{ is_admin|yesno:"true,false" }}) {
+    banner.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+  // Si está capturando "a nombre de otro" como líder/RH, el saldo del propio usuario
+  // no aplica — el banner usa el del trabajador objetivo, que no tenemos aquí.
+  // Para mantener simple: si IS_PRIV está actuando on-behalf, no mostramos el banner local.
+  const behalf = document.querySelector('input[name=behalf_mode]:checked');
+  if (IS_PRIV && behalf) {
+    banner.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+
+  const kindRadio = document.querySelector('input[name=kind]:checked');
+  if (!kindRadio) return;
+  const kind = kindRadio.value;
+  let block = false;
+  let msg = '';
+  if (kind === 'FULL_DAY' && BALANCE.remaining < 1) {
+    block = true;
+    msg = `Tu saldo se reinicia el ${BALANCE.cycleEnd}. Hasta entonces no puedes solicitar otro día completo.`;
+  } else if (kind === 'PARTIAL' && BALANCE.remaining < 1 && BALANCE.partialsRemainder >= 2) {
+    block = true;
+    msg = `Tu próximo permiso completaría un grupo de 3 (= 1 día) y ya no tienes saldo. Tu ciclo se reinicia el ${BALANCE.cycleEnd}.`;
+  }
+  if (block) {
+    text.textContent = msg;
+    banner.style.display = '';
+    if (submitBtn) submitBtn.disabled = true;
+  } else {
+    banner.style.display = 'none';
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+/* Sugerencia inteligente del tipo de permiso según fecha y hora actual.
+   - HOY 00:00-10:59:  Llegada tarde (08–11 sigue abierta)
+   - HOY 11:00-13:59:  Salida anticipada (la ventana de llegada ya cerró,
+                       avísale al usuario que la de salida abre a las 14)
+   - HOY 14:00-17:59:  Salida anticipada (en ventana activa)
+   - HOY 18:00+:        Jornada terminada, sugerencia neutra
+   - Día FUTURO:        Llegada tarde (lo más común para planear) */
+function applySmartSuggestion() {
+  const dateStr = document.getElementById('f-date').value;
+  const hint = document.getElementById('hint-suggestion');
+  const hintText = document.getElementById('hint-suggestion-text');
+  const select = document.getElementById('f-partial-type');
+  if (!dateStr) { hint.style.display = 'none'; return; }
+
+  const today = todayStr();
+  const now = new Date();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const minsNow = h * 60 + m;
+  let suggested = null;
+  let msg = '';
+
+  if (dateStr === today) {
+    if (minsNow < 11 * 60) {
+      suggested = 'LATE';
+      msg = `Aún estás en ventana de llegada tarde (hasta 11:00). Sugerencia: registrar llegada tarde a las ${pad2(h)}:${pad2(m)}.`;
+    } else if (minsNow < 14 * 60) {
+      suggested = 'EARLY_LEAVE';
+      msg = 'La ventana de llegada tarde ya cerró (11:00). Puedes pedir salida anticipada a partir de las 14:00.';
+    } else if (minsNow < 18 * 60) {
+      suggested = 'EARLY_LEAVE';
+      msg = `Estás en ventana de salida anticipada (14:00–18:00). Sugerencia: salida ahora a las ${pad2(h)}:${pad2(m)}.`;
+    } else {
+      msg = 'La jornada laboral ya terminó (18:00). Para registrar lo de hoy, pide a tu líder o RH que lo capture como solicitud tardía.';
+    }
+  } else if (dateStr > today) {
+    suggested = 'LATE';
+    msg = 'Para fechas futuras suele usarse llegada tarde — fácil de planear con anticipación. Cambia el subtipo si lo prefieres.';
+  } else {
+    // Fecha pasada (capturada por líder/RH/admin): no autosugerimos
+    hint.style.display = 'none';
+    return;
+  }
+
+  if (suggested && select.value !== suggested) {
+    select.value = suggested;
+  }
+  if (msg) {
+    hintText.textContent = msg;
+    hint.style.display = '';
+  } else {
+    hint.style.display = 'none';
+  }
+}
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function todayStr() {
+  const t = new Date();
+  return t.getFullYear() + '-' + String(t.getMonth()+1).padStart(2,'0') + '-' + String(t.getDate()).padStart(2,'0');
+}
+
+function onDateChange() {
+  const val = document.getElementById('f-date').value;
+  const isPast = val && val < todayStr();
+  const grpLate    = document.getElementById('grp-late');
+  const hintBlock  = document.getElementById('hint-late-blocked');
+  if (!isPast) {
+    grpLate.style.display = 'none';
+    hintBlock.style.display = 'none';
+  } else if (IS_PRIV) {
+    grpLate.style.display = '';
+    hintBlock.style.display = 'none';
+  } else {
+    grpLate.style.display = 'none';
+    hintBlock.style.display = '';
+  }
+  // Si estamos en Permiso, recalcular sugerencia con la nueva fecha
+  const kindRadio = document.querySelector('input[name=kind]:checked');
+  if (kindRadio && kindRadio.value === 'PARTIAL') {
+    applySmartSuggestion();
+    applyTimeBounds();
+  }
+  checkFullDayTodayWarning();
 }
 
 function openNew(dateStr) {
-  document.getElementById('f-date').value = dateStr || new Date().toISOString().slice(0,10);
+  document.getElementById('f-date').value = dateStr || todayStr();
+  onDateChange();
+  checkFullDayTodayWarning();
   $('#newModal').modal('show');
 }
 
@@ -656,19 +1487,54 @@ function applyTimeBounds() {
     input.min = '08:00'; input.max = '11:00';
     lbl.textContent = 'Hora de llegada';
     hint.textContent = 'Entre 08:00 y 11:00.';
-    if (!input.value || input.value < '08:00' || input.value > '11:00') input.value = '09:00';
+    if (!input.value || input.value < '08:00' || input.value > '11:00') input.value = '11:00';
   } else {
     input.min = '14:00'; input.max = '18:00';
     lbl.textContent = 'Hora de salida';
     hint.textContent = 'Entre 14:00 y 18:00.';
-    if (!input.value || input.value < '14:00' || input.value > '18:00') input.value = '16:00';
+    if (!input.value || input.value < '14:00' || input.value > '18:00') input.value = '15:00';
   }
 }
 
 function submitNew(e) {
   e.preventDefault();
-  const fd = new FormData(e.target);
-  // El backend espera as_leader=1 o as_hr=1; aquí mapeamos behalf_mode → flag
+  const form = e.target;
+  const kindRadio = document.querySelector('input[name=kind]:checked');
+  const dateStr = document.getElementById('f-date').value;
+
+  // Confirmación: día completo para HOY → caso especial
+  if (kindRadio && kindRadio.value === 'FULL_DAY' && dateStr === todayStr()) {
+    Swal.fire({
+      icon: 'warning',
+      title: '¿Día completo para hoy?',
+      html: 'Solicitar un día de vacaciones para <b>hoy mismo</b> solo aplica a casos especiales ' +
+            '(incapacidad, emergencia, etc.).<br><br>Si solo necesitas ausentarte unas horas, ' +
+            'un <b>permiso</b> no descuenta un día completo de tu saldo.',
+      showCancelButton: true,
+      showDenyButton: true,
+      confirmButtonText: 'Sí, día completo',
+      denyButtonText: 'Mejor un permiso',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#ff9500',
+      denyButtonColor: '#007aff',
+      customClass: { popup: 'swal2-rounded' },
+    }).then(r => {
+      if (r.isDenied) {
+        // Cambiar a Permiso y dejar al usuario completar
+        document.getElementById('k-partial').checked = true;
+        onKindChange();
+        return;
+      }
+      if (!r.isConfirmed) return;
+      doSubmitRequest(form);
+    });
+    return;
+  }
+  doSubmitRequest(form);
+}
+
+function doSubmitRequest(form) {
+  const fd = new FormData(form);
   const mode = fd.get('behalf_mode');
   if (mode === 'as_leader') fd.append('as_leader', '1');
   if (mode === 'as_hr')     fd.append('as_hr', '1');
@@ -678,25 +1544,62 @@ function submitNew(e) {
     .then(d => {
       if (d.success) {
         $('#newModal').modal('hide');
-        e.target.reset();
+        form.reset();
         document.getElementById('grp-partial').style.display = 'none';
         document.getElementById('grp-time').style.display = 'none';
+        document.getElementById('grp-late').style.display = 'none';
+        document.getElementById('hint-late-blocked').style.display = 'none';
+        document.getElementById('hint-fullday-today').style.display = 'none';
+        document.getElementById('hint-suggestion').style.display = 'none';
+        document.getElementById('hint-no-balance').style.display = 'none';
+        const sb = document.querySelector('#newForm button[type=submit]');
+        if (sb) sb.disabled = false;
         Swal.fire({icon:'success', title:'Solicitud enviada', timer:1400, showConfirmButton:false, customClass:{popup:'swal2-rounded'}});
         calendar.refetchEvents();
-        // Refresco saldo (recarga ligera de la página tras 1.4s para evitar otro endpoint)
         setTimeout(() => location.reload(), 1500);
       } else {
-        Swal.fire({icon:'error', title:'No se pudo crear', text:d.message});
+        showCreateError(d.message);
       }
     });
 }
 
+/* Detecta mensajes de saldo del backend y los presenta con Swal informativo. */
+function showCreateError(msg) {
+  const m = (msg || '').toLowerCase();
+  const isNoBalance = m.includes('no tienes días') || m.includes('completaría un grupo de 3');
+  const isDuplicate = m.includes('ya tienes una solicitud') || m.includes('ya tienes un permiso');
+  if (isNoBalance) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Saldo agotado',
+      html: `<p style="margin:0 0 8px 0;">${escapeHtml(msg)}</p>` +
+            `<p style="margin:0;color:#666;font-size:13px;">Si necesitas ausentarte, habla con tu líder o con RH para evaluar opciones.</p>`,
+      confirmButtonText: 'Entendido',
+      confirmButtonColor: '#007aff',
+      customClass: { popup: 'swal2-rounded' },
+    });
+    return;
+  }
+  if (isDuplicate) {
+    Swal.fire({
+      icon: 'info',
+      title: 'Solicitud duplicada',
+      text: msg,
+      confirmButtonText: 'Entendido',
+      confirmButtonColor: '#007aff',
+      customClass: { popup: 'swal2-rounded' },
+    });
+    return;
+  }
+  Swal.fire({ icon: 'error', title: 'No se pudo crear', text: msg });
+}
+
 const STATUS_STYLE = {
-  PENDING_LEADER: { bg:'rgba(255,149,0,.15)',  fg:'#b45309' },
-  PENDING_HR:     { bg:'rgba(59,130,246,.15)', fg:'#1d4ed8' },
-  APPROVED:       { bg:'rgba(52,199,89,.15)',  fg:'#15803d' },
-  REJECTED:       { bg:'rgba(255,59,48,.15)',  fg:'#b91c1c' },
-  CANCELLED:      { bg:'rgba(174,174,178,.20)', fg:'#52525b' },
+  PENDING_LEADER: { bg:'#ff9500', fg:'#fff' },
+  PENDING_HR:     { bg:'#3b82f6', fg:'#fff' },
+  APPROVED:       { bg:'#34c759', fg:'#fff' },
+  REJECTED:       { bg:'#ff3b30', fg:'#fff' },
+  CANCELLED:      { bg:'#78788c', fg:'#fff' },
 };
 
 function openInspector(ev) {
@@ -710,6 +1613,8 @@ function openInspector(ev) {
     ${p.partial_label ? `<div class="row"><span class="k">Subtipo</span><span class="v">${p.partial_label}</span></div>` : ''}
     ${p.event_time ? `<div class="row"><span class="k">Hora</span><span class="v">${p.event_time}</span></div>` : ''}
     ${p.captured_by ? `<div class="row"><span class="k">Capturado por</span><span class="v">${p.captured_by}</span></div>` : ''}
+    ${p.late_registration ? `<div class="row"><span class="k">Registro</span><span class="v"><span class="status-pill" style="background:rgba(255,149,0,.18);color:#b45309;">Fuera de tiempo</span></span></div>` : ''}
+    ${p.late_registration && p.late_note ? `<div class="row"><span class="k">Nota tardía</span><span class="v" style="text-align:left;">${escapeHtml(p.late_note)}</span></div>` : ''}
     ${p.reason ? `<div class="row"><span class="k">Motivo</span><span class="v" style="text-align:left;">${escapeHtml(p.reason)}</span></div>` : ''}
   `;
   const canCancel = (p.is_mine || IS_PRIV) && p.status !== 'CANCELLED' && p.status !== 'REJECTED';

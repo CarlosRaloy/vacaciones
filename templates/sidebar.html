@@ -20,7 +20,79 @@
         {% endif %}
     }
 
-/*<li class="has-sub logic_id">*/
+    /* ─────── Tarjeta de info del usuario en el sidebar ─────── */
+    .sb-user-card {
+      padding: 8px 12px 12px;
+    }
+    .sb-user-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      margin: 0;
+      line-height: 1.2;
+    }
+    .sb-user-handle {
+      font-size: 12px;
+      color: rgba(255,255,255,.55);
+      margin-bottom: 8px;
+    }
+    .sb-role-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fff;
+      background: rgba(0,0,0,.45);
+      border: 1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.10),
+        0 2px 6px rgba(0,0,0,.25);
+      margin-bottom: 10px;
+    }
+    /* Color solo en el icono según el rol */
+    .sb-role-blocked i { color: #ef4444; }
+    .sb-role-worker  i { color: #94a3b8; }
+    .sb-role-admin   i { color: #ef4444; }
+    .sb-role-hr      i { color: #a78bfa; }
+    .sb-role-leader  i { color: #38bdf8; }
+    .sb-role-auditor i { color: #2dd4bf; }
+
+    .sb-info-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255,255,255,.10);
+    }
+    .sb-info-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: rgba(255,255,255,.75);
+    }
+    .sb-info-row i {
+      width: 14px;
+      text-align: center;
+      color: rgba(255,255,255,.45);
+      font-size: 12px;
+    }
+    .sb-info-row span {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sb-info-row b {
+      color: #fff;
+      font-weight: 600;
+    }
 </style>
 
 <!-- begin #sidebar -->
@@ -48,21 +120,61 @@
                         <small>@{{ request.user.username }}</small>
                     </div>
 
-                    <div class="col-md-12 p-4">
-                        {% if request.user.profile.is_admin or request.user.is_superuser %}
-                            <i class="fa-solid fa-user-shield" style="color:#ef4444;"></i> Admin
-                        {% endif %}
-                        {% if request.user.profile.is_hr %}
-                            <i class="fa-solid fa-user-tie" style="color:#8b5cf6;"></i> RH
-                        {% endif %}
-                        {% if request.user.profile.is_leader %}
-                            <i class="fa-solid fa-user-gear" style="color:#0ea5e9;"></i> Líder
-                        {% endif %}
-                        <i class="fa-solid fa-user" style="color:#64748b;"></i> Trabajador
-                    </div>
+                    <div class="sb-user-card">
+                        {# Un solo badge de rol según level (los roles son exclusivos). #}
+                        {% with lvl=request.user.profile.level %}
+                          {% if request.user.is_superuser %}
+                            <span class="sb-role-pill sb-role-admin"><i class="fa-solid fa-user-shield"></i> Superuser</span>
+                          {% elif lvl == 2 %}
+                            <span class="sb-role-pill sb-role-admin"><i class="fa-solid fa-user-shield"></i> Administrador</span>
+                          {% elif lvl == 3 %}
+                            <span class="sb-role-pill sb-role-hr"><i class="fa-solid fa-user-tie"></i> Recursos Humanos</span>
+                          {% elif lvl == 4 %}
+                            <span class="sb-role-pill sb-role-leader"><i class="fa-solid fa-user-gear"></i> Líder</span>
+                          {% elif lvl == 5 %}
+                            <span class="sb-role-pill sb-role-auditor"><i class="fa-solid fa-eye"></i> Auditor</span>
+                          {% elif lvl == 0 %}
+                            <span class="sb-role-pill sb-role-blocked"><i class="fa-solid fa-ban"></i> Bloqueado</span>
+                          {% else %}
+                            <span class="sb-role-pill sb-role-worker"><i class="fa-solid fa-user"></i> Trabajador</span>
+                          {% endif %}
+                        {% endwith %}
 
-                    <div class="col-md-12 p-4">
-                        <i class="fas fa-palette"></i>&nbsp;{{ request.user.profile.theme }} Theme
+                        {% with p=request.user.profile %}
+                        {% if p.position or p.area or p.payroll_number or p.boss or p.boss_name %}
+                        <div class="sb-info-list">
+                          {% if p.position %}
+                          <div class="sb-info-row" title="Puesto">
+                            <i class="fa-solid fa-briefcase"></i>
+                            <span>{{ p.position.name_position }}</span>
+                          </div>
+                          {% endif %}
+                          {% if p.area %}
+                          <div class="sb-info-row" title="Área">
+                            <i class="fa-solid fa-sitemap"></i>
+                            <span>{{ p.area.name_area }}</span>
+                          </div>
+                          {% endif %}
+                          {% if p.payroll_number %}
+                          <div class="sb-info-row" title="Nº de nómina">
+                            <i class="fa-solid fa-id-badge"></i>
+                            <span>Nómina <b>{{ p.payroll_number }}</b></span>
+                          </div>
+                          {% endif %}
+                          {% if p.boss %}
+                          <div class="sb-info-row" title="Líder asignado">
+                            <i class="fa-solid fa-user-tie"></i>
+                            <span>{{ p.boss.get_full_name|default:p.boss.username }}</span>
+                          </div>
+                          {% elif p.boss_name %}
+                          <div class="sb-info-row" title="Jefe (registro manual)">
+                            <i class="fa-solid fa-user-tie"></i>
+                            <span>{{ p.boss_name }}</span>
+                          </div>
+                          {% endif %}
+                        </div>
+                        {% endif %}
+                        {% endwith %}
                     </div>
                 </a>
             </li>
@@ -99,6 +211,8 @@
                 </a>
                 <ul class="sub-menu">
                     <li><a href="{% url 'users:panel' %}"><i class="fa-regular fa-address-card" style="color: #75a8ff;"></i> Panel Admin</a></li>
+                    <li><a href="{% url 'users:positions' %}"><i class="fa-solid fa-briefcase" style="color: #ffcd56;"></i> Puestos</a></li>
+                    <li><a href="{% url 'users:areas' %}"><i class="fa-solid fa-sitemap" style="color: #ff9500;"></i> Áreas</a></li>
                 </ul>
             </li>
             {% endif %}
@@ -113,10 +227,10 @@
                 </a>
                 <ul class="sub-menu">
                     <li><a href="{% url 'vacations:calendar' %}"><i class="fa-regular fa-calendar"></i> Calendario</a></li>
-                    {% if request.user.profile.is_leader %}
+                    {% if request.user.profile.is_leader or request.user.profile.is_admin or request.user.is_superuser %}
                     <li><a href="{% url 'vacations:leader_inbox' %}"><i class="fa-solid fa-inbox"></i> Bandeja Líder</a></li>
                     {% endif %}
-                    {% if request.user.profile.is_hr %}
+                    {% if request.user.profile.is_hr or request.user.profile.is_admin or request.user.is_superuser %}
                     <li><a href="{% url 'vacations:hr_inbox' %}"><i class="fa-solid fa-user-shield"></i> Bandeja RH</a></li>
                     {% endif %}
                 </ul>

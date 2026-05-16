@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block head_content %}
+<title>{{ panel_title }} · Catálogo</title>
+<style>
+  #content.content {
+    background:
+      linear-gradient(180deg, rgba(10,10,18,.45) 0%, rgba(10,10,18,.30) 100%),
+      url("{% static 'img/bg_calendar.webp' %}") center center / cover no-repeat fixed,
+      #0a0a14;
+    color: rgba(255,255,255,.96);
+    min-height: calc(100vh - 60px);
+  }
+  .cat-wrap { min-height: calc(100vh - 96px); }
+  .panel.panel-inverse > .panel-heading,
+  .page-header { display: none; }
+  .panel.panel-inverse { background: transparent; border: 0; box-shadow: none; }
+  .panel.panel-inverse > .panel-body { padding: 18px; background: transparent; }
+
+  .cat-wrap {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', system-ui, sans-serif;
+    color: rgba(255,255,255,.96);
+  }
+  .cat-header {
+    background: rgba(20,24,38,.40);
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 20px;
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow: 0 10px 32px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.30);
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+  }
+  .cat-header h2 {
+    font-size: 22px; font-weight: 700; margin: 0;
+    text-shadow: 0 1px 3px rgba(0,0,0,.45);
+  }
+  .cat-header h2 small {
+    display: block; font-size: 11px; font-weight: 500; opacity: .72;
+    text-transform: uppercase; letter-spacing: .08em; margin-top: 4px;
+  }
+  .btn-new {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: linear-gradient(135deg, #2196ff 0%, #5e5ce6 100%);
+    border: 1px solid rgba(255,255,255,.40);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer;
+    transition: all .22s ease;
+    box-shadow: 0 8px 24px rgba(0,122,255,.45), inset 0 1px 0 rgba(255,255,255,.40);
+  }
+  .btn-new:hover { transform: translateY(-2px) scale(1.02); }
+
+  .cat-card {
+    background: rgba(20,24,38,.34);
+    border: 1px solid rgba(255,255,255,.20);
+    border-radius: 20px;
+    overflow: hidden;
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow: 0 14px 40px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.25);
+  }
+  .cat-table { width: 100%; border-collapse: collapse; color: rgba(255,255,255,.94); }
+  .cat-table thead th {
+    background: rgba(255,255,255,.06);
+    padding: 12px 14px;
+    text-align: left;
+    font-size: 11px; font-weight: 600;
+    color: rgba(255,255,255,.72);
+    text-transform: uppercase; letter-spacing: .07em;
+    border-bottom: 1px solid rgba(255,255,255,.14);
+  }
+  .cat-table tbody td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    font-size: 13.5px;
+    vertical-align: middle;
+  }
+  .cat-table tbody tr:hover { background: rgba(255,255,255,.04); }
+  .cat-table tbody tr:last-child td { border-bottom: 0; }
+
+  .cell-name { font-weight: 600; }
+  .cell-desc { color: rgba(255,255,255,.75); }
+
+  .act-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    border: 1px solid rgba(255,255,255,.28);
+    color: rgba(255,255,255,.95);
+    padding: 6px 10px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s ease;
+    margin-right: 4px;
+  }
+  .act-btn.edit { background: linear-gradient(135deg, #2196ff, #007aff); }
+  .act-btn.del  { background: linear-gradient(135deg, #ff5e54, #ff3b30); }
+  .act-btn:hover { transform: translateY(-1px); }
+
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: rgba(255,255,255,.70);
+  }
+  .empty .em-i { font-size: 48px; opacity: .55; margin-bottom: 12px; }
+  .empty .em-t { font-size: 16px; font-weight: 600; color: rgba(255,255,255,.92); margin-bottom: 4px; }
+
+  /* Modal Bootstrap dark glass */
+  .cat-modal .modal-content {
+    background: rgba(22,22,32,.85);
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 16px;
+    color: rgba(255,255,255,.96);
+    box-shadow: 0 24px 64px rgba(0,0,0,.50);
+  }
+  .cat-modal .modal-header {
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.04);
+  }
+  .cat-modal .modal-footer {
+    border-top: 1px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.04);
+  }
+  .cat-modal label { color: rgba(255,255,255,.85); font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+  .cat-modal input, .cat-modal textarea {
+    background: rgba(0,0,0,.32);
+    border: 1px solid rgba(255,255,255,.22);
+    color: rgba(255,255,255,.96);
+    border-radius: 10px;
+    padding: 8px 10px;
+    width: 100%;
+  }
+  .cat-modal input:focus, .cat-modal textarea:focus {
+    background: rgba(0,0,0,.45);
+    border-color: rgba(0,122,255,.65);
+    box-shadow: 0 0 0 3px rgba(0,122,255,.22);
+    outline: none;
+  }
+
+  @media (max-width: 640px) {
+    .cat-table thead { display: none; }
+    .cat-table, .cat-table tbody, .cat-table tr, .cat-table td { display: block; width: 100%; }
+    .cat-table tbody tr { padding: 12px 14px; border-bottom: 1px solid rgba(255,255,255,.10); }
+    .cat-table tbody td { border: 0; padding: 4px 0; display: flex; justify-content: space-between; gap: 12px; }
+    .cat-table tbody td:before { content: attr(data-label); font-size: 11px; font-weight: 600; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .06em; }
+  }
+</style>
+{% endblock %}
+
+{% block panel_page %}{{ panel_title }}{% endblock %}
+{% block panel_title %}{{ list_title }}{% endblock %}
+
+{% block content %}
+<div class="cat-wrap">
+  <div class="cat-header">
+    <h2>{{ list_title }}<small>{{ items|length }} elementos</small></h2>
+    <button class="btn-new" id="btn-new"><i class="fa fa-plus"></i> Nuevo</button>
+  </div>
+
+  <div class="cat-card">
+    {% if items %}
+    <table class="cat-table">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Descripción</th>
+          <th style="width:160px;text-align:right;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in items %}
+        <tr data-id="{{ it.pk }}">
+          <td data-label="Nombre" class="cell-name js-name">
+            {% if name_attr == 'name_position' %}{{ it.name_position }}{% else %}{{ it.name_area }}{% endif %}
+          </td>
+          <td data-label="Descripción" class="cell-desc js-desc">
+            {% if name_attr == 'name_position' %}{{ it.description_position|default:"—" }}{% else %}{{ it.description|default:"—" }}{% endif %}
+          </td>
+          <td data-label="Acciones" style="text-align:right;">
+            <button class="act-btn edit js-edit"><i class="fa fa-edit"></i> Editar</button>
+            <button class="act-btn del js-del"><i class="fa fa-trash"></i> Eliminar</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+      <div class="em-i"><i class="fa-regular fa-folder-open"></i></div>
+      <div class="em-t">Sin elementos</div>
+      <div>Crea el primero con el botón <b>Nuevo</b>.</div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="modal fade cat-modal" id="modal-cat" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <form id="form-cat" method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" id="f-action" value="create">
+      <input type="hidden" name="id" id="f-id">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modal-title">Nuevo</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color:#fff;text-shadow:none;opacity:.85;">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div style="margin-bottom:12px;">
+            <label>Nombre</label>
+            <input type="text" name="name" id="f-name" required maxlength="100">
+          </div>
+          <div>
+            <label>Descripción (opcional)</label>
+            <textarea name="description" id="f-desc" rows="3"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CAT_URL = window.location.pathname;
+const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+function openCreate() {
+  document.getElementById('f-action').value = 'create';
+  document.getElementById('f-id').value = '';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-desc').value = '';
+  document.getElementById('modal-title').textContent = 'Nuevo';
+  $('#modal-cat').modal('show');
+}
+
+function openEdit(tr) {
+  document.getElementById('f-action').value = 'edit';
+  document.getElementById('f-id').value = tr.dataset.id;
+  document.getElementById('f-name').value = tr.querySelector('.js-name').textContent.trim();
+  const desc = tr.querySelector('.js-desc').textContent.trim();
+  document.getElementById('f-desc').value = (desc === '—') ? '' : desc;
+  document.getElementById('modal-title').textContent = 'Editar';
+  $('#modal-cat').modal('show');
+}
+
+document.getElementById('btn-new').onclick = openCreate;
+document.querySelectorAll('.js-edit').forEach(b => {
+  b.onclick = () => openEdit(b.closest('tr'));
+});
+document.querySelectorAll('.js-del').forEach(b => {
+  b.onclick = () => {
+    const tr = b.closest('tr');
+    Swal.fire({
+      title: '¿Eliminar?',
+      text: 'Si está en uso, los usuarios asociados quedarán con el campo vacío.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#ff3b30',
+    }).then(r => {
+      if (!r.isConfirmed) return;
+      const fd = new FormData();
+      fd.append('action', 'delete');
+      fd.append('id', tr.dataset.id);
+      fd.append('csrfmiddlewaretoken', csrftoken);
+      fetch(CAT_URL, {method:'POST', body:fd, headers:{'X-CSRFToken': csrftoken}})
+        .then(r => r.json())
+        .then(d => {
+          if (d.success) {
+            Swal.fire({icon:'success', title:'Eliminado', timer:1100, showConfirmButton:false});
+            setTimeout(() => location.reload(), 900);
+          } else Swal.fire({icon:'error', title:'Error', text:d.message});
+        });
+    });
+  };
+});
+
+document.getElementById('form-cat').addEventListener('submit', e => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  fetch(CAT_URL, {method:'POST', body:fd, headers:{'X-CSRFToken': csrftoken}})
+    .then(r => r.json())
+    .then(d => {
+      if (d.success) {
+        Swal.fire({icon:'success', title:'Listo', timer:1100, showConfirmButton:false});
+        setTimeout(() => location.reload(), 900);
+      } else Swal.fire({icon:'error', title:'Error', text:d.message});
+    });
+});
+</script>
+{% endblock %}
