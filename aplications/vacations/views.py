@@ -70,6 +70,61 @@ def _validate_partial_time(partial_type: str, t):
 
 
 @login_required
+def employee_info(request, user_id: int):
+    """
+    Devuelve info ligera del trabajador objetivo para el modal on-behalf:
+    nombre, puesto, área, jefe (resuelto FK o texto manual), iniciales y saldo
+    actual del ciclo. Sólo accesible para líder/RH/admin. El líder además solo
+    ve a sus propios subordinados (boss=request.user); admin/RH ven a todos.
+    """
+    if not (_is_leader(request.user) or _is_hr(request.user)):
+        return HttpResponseForbidden()
+    target = get_object_or_404(User.objects.select_related(
+        'profile', 'profile__position', 'profile__area', 'profile__boss',
+    ), pk=user_id)
+    profile = getattr(target, 'profile', None)
+
+    # Líder puro: sólo sus subordinados directos.
+    if (
+        _is_leader(request.user)
+        and not _is_admin(request.user)
+        and not _is_hr(request.user)
+    ):
+        boss_id = getattr(profile, 'boss_id', None) if profile else None
+        if boss_id != request.user.pk:
+            return HttpResponseForbidden()
+
+    full_name = target.get_full_name() or target.username
+    initials = ''.join(p[0] for p in full_name.split()[:2]).upper() or target.username[:2].upper()
+
+    boss = getattr(profile, 'boss', None) if profile else None
+    boss_name = (
+        (boss.get_full_name() or boss.username)
+        if boss else (getattr(profile, 'boss_name', None) if profile else None)
+    )
+    position = getattr(getattr(profile, 'position', None), 'name_position', None) if profile else None
+    area = getattr(getattr(profile, 'area', None), 'name_area', None) if profile else None
+
+    bal = get_balance(target)
+    return JsonResponse({
+        'id': target.id,
+        'name': full_name,
+        'initials': initials,
+        'position': position or '',
+        'area': area or '',
+        'boss': boss_name or '',
+        'has_leader': bool(boss),
+        'balance': {
+            'allowance': bal.allowance,
+            'used': bal.used,
+            'remaining': bal.remaining,
+            'partials_remainder': bal.partials_remainder,
+            'cycle_end': bal.cycle_end.strftime('%d/%m/%Y'),
+        },
+    })
+
+
+@login_required
 def calendar_view(request):
     profile = getattr(request.user, 'profile', None)
     boss = getattr(profile, 'boss', None) if profile else None

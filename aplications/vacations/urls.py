@@ -6,6 +6,7 @@ app_name = 'vacations'
 urlpatterns = [
     path('', views.calendar_view, name='calendar'),
     path('events.json', views.events_json, name='events_json'),
+    path('employee-info/<int:user_id>/', views.employee_info, name='employee_info'),
     path('request/create/', views.create_request, name='create'),
     path('leader/inbox/', views.leader_inbox, name='leader_inbox'),
     path('hr/inbox/', views.hr_inbox, name='hr_inbox'),
