@@ -12,6 +12,57 @@
   .role-leader  { background:#0ea5e9; }
   .role-auditor { background:#0d9488; }
 
+  /* ── Pills de antigüedad ── */
+  .tenure-cell { line-height: 1.2; }
+  .tenure-pills {
+    display: inline-flex; flex-wrap: wrap; gap: 4px;
+    margin-bottom: 4px;
+  }
+  .tenure-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    box-shadow: 0 2px 4px rgba(15,23,42,.08);
+    line-height: 1.25;
+  }
+  .tenure-pill .num { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .tenure-pill .lbl { font-weight: 600; opacity: .92; font-size: 10.5px; }
+  .tenure-y { background: linear-gradient(135deg, #6366f1, #4338ca); }
+  .tenure-m { background: linear-gradient(135deg, #0ea5e9, #0369a1); }
+  .tenure-d { background: linear-gradient(135deg, #10b981, #047857); }
+  .tenure-first {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 2px 6px rgba(245, 158, 11, .35);
+  }
+  .tenure-anniv {
+    background: linear-gradient(135deg, #ec4899, #db2777);
+    box-shadow: 0 2px 8px rgba(236, 72, 153, .40);
+    animation: tenurePulse 1.8s ease-in-out infinite;
+  }
+  @keyframes tenurePulse {
+    0%, 100% { transform: scale(1);     box-shadow: 0 2px 8px rgba(236, 72, 153, .40); }
+    50%      { transform: scale(1.05);  box-shadow: 0 4px 14px rgba(236, 72, 153, .60); }
+  }
+  .tenure-hire i { font-size: 11px; }
+  .tenure-hire i.fa-calendar-check { color: #94a3b8; }
+  .tenure-hire i.fa-cake-candles { color: #f59e0b; }
+  .tenure-hire.is-anniv i.fa-cake-candles { color: #ec4899; }
+  .tenure-hire {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 10.5px;
+    color: #64748b;
+    font-weight: 500;
+  }
+  .tenure-hire i { color: #94a3b8; font-size: 10px; }
+  .tenure-empty {
+    font-size: 11px;
+    color: #94a3b8;
+    font-style: italic;
+  }
+
   .modal-section {
     border: 1px solid #e9ecef;
     border-radius: 12px;
@@ -121,6 +172,7 @@
         <th>Área</th>
         <th>Rol</th>
         <th>Líder</th>
+        <th>Antigüedad</th>
         <th>Último Acceso</th>
         <th class="text-center">Acciones</th>
       </tr>
@@ -148,6 +200,56 @@
           {% if u.profile.boss %}{{ u.profile.boss.get_full_name|default:u.profile.boss.username }}
           {% elif u.profile.boss_name %}<span class="text-muted">{{ u.profile.boss_name }} (manual)</span>
           {% else %}—{% endif %}
+        </td>
+        <td class="tenure-cell">
+          {% if u.tenure %}
+            <div class="tenure-pills">
+              {% if u.tenure.is_year_anniversary %}
+                <span class="tenure-pill tenure-anniv" title="¡Hoy cumple {{ u.tenure.years }} año{{ u.tenure.years|pluralize }} en la empresa!">
+                  <i class="fa-solid fa-cake-candles"></i>
+                  <span class="lbl">¡Aniversario!</span>
+                </span>
+              {% endif %}
+              {% if u.tenure.total_days == 0 %}
+                <span class="tenure-pill tenure-first" title="Hoy es su primer día">
+                  <i class="fa-solid fa-seedling"></i>
+                  <span class="lbl">Primer día</span>
+                </span>
+              {% else %}
+                {% if u.tenure.years %}
+                  <span class="tenure-pill tenure-y" title="Años">
+                    <span class="num">{{ u.tenure.years }}</span>
+                    <span class="lbl">año{{ u.tenure.years|pluralize }}</span>
+                  </span>
+                {% endif %}
+                {% if u.tenure.months %}
+                  <span class="tenure-pill tenure-m" title="Meses">
+                    <span class="num">{{ u.tenure.months }}</span>
+                    <span class="lbl">mes{{ u.tenure.months|pluralize:"es" }}</span>
+                  </span>
+                {% endif %}
+                {# Solo mostrar la pill de días si tiene valor o si es el único componente #}
+                {% if u.tenure.days or not u.tenure.years and not u.tenure.months %}
+                  <span class="tenure-pill tenure-d" title="Días">
+                    <span class="num">{{ u.tenure.days }}</span>
+                    <span class="lbl">día{{ u.tenure.days|pluralize:"s" }}</span>
+                  </span>
+                {% endif %}
+              {% endif %}
+            </div>
+            <div class="tenure-hire {% if u.tenure.is_year_anniversary %}is-anniv{% endif %}"
+                 title="Fecha de contratación · {{ u.tenure.total_days }} día{{ u.tenure.total_days|pluralize:"s" }} totales">
+              {% if u.tenure.is_month_anniversary %}
+                <i class="fa-solid fa-cake-candles"
+                   title="{% if u.tenure.is_year_anniversary %}¡Aniversario hoy!{% else %}Hoy es su cumplemes de ingreso{% endif %}"></i>
+              {% else %}
+                <i class="fa-regular fa-calendar-check"></i>
+              {% endif %}
+              {{ u.profile.hiring_date|date:"d M Y" }}
+            </div>
+          {% else %}
+            <span class="tenure-empty">Sin fecha de ingreso</span>
+          {% endif %}
         </td>
         <td>{% if u.last_login %}{{ u.last_login|date:"d/m/Y H:i" }}{% else %}<span class="text-muted">Nunca</span>{% endif %}</td>
         <td class="text-center" style="white-space:nowrap;">
@@ -180,7 +282,7 @@
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="9" class="text-center text-muted">No hay usuarios registrados.</td></tr>
+      <tr><td colspan="10" class="text-center text-muted">No hay usuarios registrados.</td></tr>
       {% endfor %}
     </tbody>
   </table>

@@ -190,6 +190,8 @@
   .mac-btn:active { transform: scale(.97); }
   .mac-btn.primary { background: var(--mac-accent); color: #fff; border-color: var(--mac-accent); box-shadow: 0 2px 6px rgba(0,122,255,.25); }
   .mac-btn.primary:hover { background: #0066d9; }
+  .mac-btn.success { background: var(--mac-green); color: #fff; border-color: var(--mac-green); box-shadow: 0 2px 6px rgba(52,199,89,.28); }
+  .mac-btn.success:hover { background: #2ca84a; }
   .mac-btn.icon { padding: 6px 10px; }
 
   /* ──────────────────── FullCalendar overrides ──────────────────── */
@@ -859,14 +861,59 @@
       inset 0 -1px 0 rgba(0,0,0,.20),
       0 8px 20px rgba(0,0,0,.45) !important;
   }
-  .fc-list-day-cushion {
-    background: rgba(255,255,255,.10) !important;
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
-    color: var(--lg-text) !important;
+  /* ───────── Vista LISTA — glass oscuro que deja ver el wallpaper ───────── */
+  .fc-list { border: 0 !important; background: transparent !important; }
+  .fc-list-table,
+  .fc-list-table > tbody { background: transparent !important; }
+  .fc-list-day {
+    background: transparent !important;
   }
-  .fc-list-event:hover td { background: rgba(255,255,255,.08); }
-  .fc, .fc table, .fc .fc-list-event-title a { color: var(--lg-text) !important; }
+  .fc-list-day-cushion {
+    background: rgba(15,23,42,.55) !important;
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+    color: rgba(255,255,255,.95) !important;
+    border: 1px solid rgba(255,255,255,.10) !important;
+    border-radius: 10px !important;
+    padding: 8px 12px !important;
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+  .fc-list-day-cushion a { color: rgba(255,255,255,.95) !important; }
+  .fc-list-day-text,
+  .fc-list-day-side-text { color: rgba(255,255,255,.95) !important; }
+
+  .fc-list-event {
+    background: rgba(15,23,42,.42) !important;
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    border: 1px solid rgba(255,255,255,.08) !important;
+    border-radius: 10px !important;
+    margin-top: 4px;
+  }
+  .fc-list-event td {
+    background: transparent !important;
+    color: rgba(255,255,255,.92) !important;
+    border: 0 !important;
+    padding: 10px 14px !important;
+    vertical-align: middle;
+  }
+  .fc-list-event:hover td {
+    background: rgba(255,255,255,.06) !important;
+  }
+  .fc-list-event-time { color: rgba(255,255,255,.65) !important; font-weight: 500; }
+  .fc-list-event-title a {
+    color: rgba(255,255,255,.95) !important;
+    font-weight: 500;
+  }
+  .fc-list-event-graphic { padding-right: 0 !important; }
+  .fc-list-empty {
+    background: rgba(15,23,42,.42) !important;
+    color: rgba(255,255,255,.70) !important;
+    border-radius: 12px !important;
+    padding: 28px !important;
+  }
+  .fc, .fc table, .fc .fc-list-event-title a { color: rgba(255,255,255,.92) !important; }
 
   /* Modal */
   .mac-sheet.modal { backdrop-filter: blur(20px); }
@@ -1225,11 +1272,15 @@
     <label class="mac-filter"><input type="checkbox" data-status="REJECTED"><span class="swatch" style="background:#ff3b30"></span> Rechazada</label>
     <label class="mac-filter"><input type="checkbox" data-status="CANCELLED"><span class="swatch" style="background:#aeaeb2"></span> Cancelada</label>
 
-    {% if is_leader or is_hr or is_admin %}
+    {% if is_leader or is_hr or is_admin or is_auditor %}
     <div class="mac-section-title">Vista</div>
     <select id="scope" class="mac-scope">
       <option value="mine">Solo mías</option>
-      <option value="all">Toda la organización</option>
+      {% if is_hr or is_admin or is_auditor %}
+        <option value="all" selected>Toda la organización</option>
+      {% else %}
+        <option value="all" selected>Mi equipo (yo + mis trabajadores)</option>
+      {% endif %}
     </select>
     {% endif %}
   </aside>
@@ -1424,8 +1475,11 @@ const eventsUrl = "{% url 'vacations:events_json' %}";
 const createUrl = "{% url 'vacations:create' %}";
 const employeeInfoUrlBase = "/vacaciones/employee-info/";  // + <id>/
 const IS_ADMIN_GLOBAL = {{ is_admin|yesno:"true,false" }};
+const IS_LEADER_GLOBAL = {{ is_leader|yesno:"true,false" }};
+const IS_HR_GLOBAL = {{ is_hr|yesno:"true,false" }};
+const CURRENT_USER_ID = {{ request.user.id }};
 let TARGET_BALANCE = null;  // {allowance, used, remaining, partials_remainder, cycle_end}
-const IS_PRIV   = {{ is_leader|yesno:"true,false" }} || {{ is_hr|yesno:"true,false" }} || {{ is_admin|yesno:"true,false" }};
+const IS_PRIV   = IS_LEADER_GLOBAL || IS_HR_GLOBAL || IS_ADMIN_GLOBAL;
 const BALANCE = {
   remaining: {{ balance.remaining|default:0 }},
   allowance: {{ balance.allowance|default:0 }},
@@ -1446,6 +1500,8 @@ document.addEventListener('DOMContentLoaded', () => {
     fixedWeekCount: false,
     dayMaxEvents: 3,
     selectable: true,
+    allDayText: 'Todo el día',
+    noEventsText: 'No hay solicitudes en este período.',
     dateClick: info => openNew(info.dateStr),
     events: (info, success, failure) => {
       const scope = (document.getElementById('scope')?.value) || 'mine';
@@ -1996,21 +2052,47 @@ function openInspector(ev) {
   const p = ev.extendedProps;
   const sty = STATUS_STYLE[p.status] || STATUS_STYLE.CANCELLED;
   document.getElementById('ins-title').textContent = p.kind_label;
+  // Bloque de "quién hizo qué" — captura, aprobaciones, cancelación.
+  const actorRow = (label, name, at, icon) => name
+    ? `<div class="row"><span class="k"><i class="${icon}" style="margin-right:6px;opacity:.6;"></i>${label}</span>
+         <span class="v">${escapeHtml(name)}${at ? `<small style="display:block;font-size:11px;opacity:.65;margin-top:1px;">${at}</small>` : ''}</span>
+       </div>`
+    : '';
+
   document.getElementById('ins-body').innerHTML = `
     <div class="row"><span class="k">Trabajador</span><span class="v">${p.employee}</span></div>
     <div class="row"><span class="k">Fecha</span><span class="v">${formatDate(ev.startStr)}</span></div>
     <div class="row"><span class="k">Estado</span><span class="v"><span class="status-pill" style="background:${sty.bg};color:${sty.fg};">${p.status_label}</span></span></div>
     ${p.partial_label ? `<div class="row"><span class="k">Subtipo</span><span class="v">${p.partial_label}</span></div>` : ''}
     ${p.event_time ? `<div class="row"><span class="k">Hora</span><span class="v">${p.event_time}</span></div>` : ''}
-    ${p.captured_by ? `<div class="row"><span class="k">Capturado por</span><span class="v">${p.captured_by}</span></div>` : ''}
     ${p.late_registration ? `<div class="row"><span class="k">Registro</span><span class="v"><span class="status-pill" style="background:rgba(255,149,0,.18);color:#b45309;">Fuera de tiempo</span></span></div>` : ''}
     ${p.late_registration && p.late_note ? `<div class="row"><span class="k">Nota tardía</span><span class="v" style="text-align:left;">${escapeHtml(p.late_note)}</span></div>` : ''}
     ${p.reason ? `<div class="row"><span class="k">Motivo</span><span class="v" style="text-align:left;">${escapeHtml(p.reason)}</span></div>` : ''}
+    ${actorRow('Capturado por', p.captured_by, null, 'fa-solid fa-keyboard')}
+    ${actorRow('Aprobado por líder', p.leader_acted_by, p.leader_acted_at, 'fa-solid fa-user-gear')}
+    ${actorRow('Aprobado por RH', p.hr_acted_by, p.hr_acted_at, 'fa-solid fa-user-shield')}
+    ${actorRow('Cancelado por', p.cancelled_by, p.cancelled_at, 'fa-solid fa-ban')}
   `;
-  const canCancel = (p.is_mine || IS_PRIV) && p.status !== 'CANCELLED' && p.status !== 'REJECTED';
-  document.getElementById('ins-footer').innerHTML = canCancel
-    ? `<button class="mac-btn danger" onclick="cancelReq(${ev.id})"><i class="fa fa-times"></i> Cancelar solicitud</button>`
-    : '';
+  // Solo se puede cancelar mientras la solicitud sigue pendiente.
+  // Una vez aprobada (o rechazada / cancelada), queda en firme.
+  const isPending = p.status === 'PENDING_LEADER' || p.status === 'PENDING_HR';
+  const canCancel = isPending && (p.is_mine || IS_PRIV);
+  // Aprobar como líder: status PENDING_LEADER y (admin O líder asignado a esta solicitud)
+  const canApproveLeader = p.status === 'PENDING_LEADER'
+    && (IS_ADMIN_GLOBAL || (IS_LEADER_GLOBAL && p.requested_to_leader_id === CURRENT_USER_ID));
+  // Aprobar como RH: status PENDING_HR y RH/admin
+  const canApproveHR = p.status === 'PENDING_HR' && IS_HR_GLOBAL;
+  const canApprove = canApproveLeader || canApproveHR;
+
+  const buttons = [];
+  if (canApprove) {
+    const role = canApproveHR ? 'hr' : 'leader';
+    buttons.push(`<button class="mac-btn success" onclick="approveReq(${ev.id}, '${role}')"><i class="fa fa-check"></i> Aprobar</button>`);
+  }
+  if (canCancel) {
+    buttons.push(`<button class="mac-btn danger" onclick="cancelReq(${ev.id})"><i class="fa fa-times"></i> Cancelar solicitud</button>`);
+  }
+  document.getElementById('ins-footer').innerHTML = buttons.join('');
   document.getElementById('inspector').classList.add('open');
   document.getElementById('scrim').classList.add('open');
 }
@@ -2037,6 +2119,36 @@ function cancelReq(id) {
         setTimeout(() => location.reload(), 1300);
       } else Swal.fire({icon:'error', title:'Error', text:d.message});
     });
+}
+
+function approveReq(id, role) {
+  Swal.fire({
+    icon: 'question',
+    title: '¿Aprobar solicitud?',
+    text: role === 'hr'
+      ? 'Quedará como APROBADA (paso final de RH).'
+      : 'Pasará a Pendiente de RH para autorización final.',
+    showCancelButton: true,
+    confirmButtonText: 'Aprobar',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#34c759',
+  }).then(res => {
+    if (!res.isConfirmed) return;
+    const url = role === 'hr'
+      ? `/vacaciones/${id}/hr-act/`
+      : `/vacaciones/${id}/leader-act/`;
+    const fd = new FormData();
+    fd.append('action', 'approve');
+    fetch(url, { method:'POST', body: fd, headers:{'X-CSRFToken': csrftoken} })
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        closeInspector();
+        Swal.fire({icon:'success', title:'Aprobada', timer:1200, showConfirmButton:false});
+        calendar.refetchEvents();
+        setTimeout(() => location.reload(), 1300);
+      })
+      .catch(() => Swal.fire({icon:'error', title:'Error', text:'No se pudo aprobar la solicitud.'}));
+  });
 }
 </script>
 {% endblock %}

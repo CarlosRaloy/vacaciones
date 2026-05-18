@@ -1,0 +1,1262 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block head_content %}
+    <title>Dashboard · Vacaciones</title>
+{% endblock %}
+
+{% block panel_page %}
+    Dashboard <small>Visión general de la organización</small>
+{% endblock %}
+
+{% block panel_title %}
+    Estadísticas de vacaciones y dashboard emocional
+{% endblock %}
+
+{% block content %}
+<style>
+    /* ════════════════════════════════════════════════════
+       ░ DASHBOARD — Fondo + Glass (estilo Mac OS)
+       ════════════════════════════════════════════════════ */
+
+    /* 1) Quitar la "ventana" panel-inverse SOLO en el dashboard.
+       El bloque <h1 class="page-header"> y el .panel se vuelven invisibles
+       para dejar el fondo + los cristales protagonistas. */
+    body { background: #0f172a; }
+    #content {
+        position: relative;
+        min-height: 100vh;
+        background:
+            linear-gradient(180deg, rgba(15,23,42,.22) 0%, rgba(15,23,42,.55) 100%),
+            url("{% static 'img/bg_calendar.webp' %}") center/cover fixed no-repeat !important;
+    }
+    #content::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+            radial-gradient(1200px 600px at 10% 10%, rgba(99,102,241,.30), transparent 60%),
+            radial-gradient(1000px 700px at 90% 30%, rgba(236,72,153,.18), transparent 60%),
+            radial-gradient(900px 800px at 50% 100%, rgba(20,184,166,.20), transparent 60%);
+        pointer-events: none;
+        z-index: 0;
+    }
+    #content > h1.page-header { display: none !important; }
+    #content > .panel.panel-inverse,
+    #content > .panel {
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+    #content > .panel > .panel-heading { display: none !important; }
+    #content > .panel > .panel-body {
+        background: transparent !important;
+        padding: 0 !important;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* ─── Hero header propio del dashboard ─── */
+    .dash-hero {
+        position: relative;
+        z-index: 1;
+        margin-bottom: 22px;
+        color: #fff;
+    }
+    .dash-hero h1 {
+        font-size: 30px;
+        font-weight: 700;
+        letter-spacing: -.02em;
+        margin: 0;
+        color: #fff;
+        text-shadow: 0 2px 18px rgba(0,0,0,.35);
+        display: flex; align-items: center; gap: 12px;
+    }
+    .dash-hero h1 .live-dot {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 0 4px rgba(34,197,94,.25);
+        animation: livePulse 1.6s ease-in-out infinite;
+    }
+    @keyframes livePulse {
+        0%,100% { box-shadow: 0 0 0 4px rgba(34,197,94,.25); }
+        50%     { box-shadow: 0 0 0 9px rgba(34,197,94,0); }
+    }
+    .dash-hero p {
+        margin: 6px 0 0;
+        color: rgba(255,255,255,.78);
+        font-size: 13.5px;
+        text-shadow: 0 1px 6px rgba(0,0,0,.25);
+    }
+
+    /* ─── Patrón glass reutilizable ─── */
+    .glass {
+        background: rgba(255,255,255,.62);
+        backdrop-filter: blur(12px) saturate(150%);
+        -webkit-backdrop-filter: blur(12px) saturate(150%);
+        border: 1px solid rgba(255,255,255,.55);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.7),
+            0 10px 40px rgba(2, 6, 23, .18),
+            0 2px 10px rgba(2, 6, 23, .08);
+        border-radius: 18px;
+    }
+    .glass-dark {
+        background: rgba(15,23,42,.42);
+        backdrop-filter: blur(22px) saturate(160%);
+        -webkit-backdrop-filter: blur(22px) saturate(160%);
+        border: 1px solid rgba(255,255,255,.16);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.1),
+            0 10px 40px rgba(0,0,0,.25);
+        border-radius: 18px;
+        color: #fff;
+    }
+
+    /* ─── Filtros (barra glass flotante) ─── */
+    .dash-filters {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 12px;
+        padding: 14px 18px;
+        margin-bottom: 22px;
+        background: rgba(255,255,255,.62);
+        backdrop-filter: blur(12px) saturate(150%);
+        -webkit-backdrop-filter: blur(12px) saturate(150%);
+        border: 1px solid rgba(255,255,255,.55);
+        border-radius: 18px;
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.7),
+            0 10px 40px rgba(2, 6, 23, .18);
+    }
+    .dash-filters label {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #475569;
+        font-weight: 700;
+        margin-bottom: 6px;
+        display: block;
+    }
+    .dash-filters .form-control,
+    .dash-filters .select2-container--default .select2-selection--single {
+        border-radius: 12px !important;
+        border: 1px solid rgba(15,23,42,.10) !important;
+        height: 40px !important;
+        background: rgba(255,255,255,.85) !important;
+        backdrop-filter: blur(8px);
+    }
+    .dash-filters .select2-container--default .select2-selection--single .select2-selection__rendered {
+        line-height: 38px !important;
+        color: #0f172a !important;
+        font-weight: 500;
+    }
+    .dash-filters .select2-container--default .select2-selection--single .select2-selection__arrow {
+        height: 38px !important;
+    }
+    .dash-filters .reset-btn {
+        align-self: end;
+        height: 40px;
+        border-radius: 12px;
+        font-weight: 600;
+        background: rgba(15,23,42,.85);
+        color: #fff;
+        border: 0;
+        transition: background .15s ease, transform .15s ease;
+    }
+    .dash-filters .reset-btn:hover {
+        background: #0f172a;
+        transform: translateY(-1px);
+    }
+
+    /* ─── KPI Cards (glass + hover) ─── */
+    .kpi-grid {
+        position: relative; z-index: 1;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(195px, 1fr));
+        gap: 14px;
+        margin-bottom: 22px;
+    }
+    .kpi-card {
+        position: relative;
+        overflow: hidden;
+        padding: 18px 20px;
+        border-radius: 18px;
+        background: rgba(255,255,255,.62);
+        backdrop-filter: blur(12px) saturate(150%);
+        -webkit-backdrop-filter: blur(12px) saturate(150%);
+        border: 1px solid rgba(255,255,255,.55);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.7),
+            0 10px 32px rgba(2, 6, 23, .15);
+        transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s ease;
+    }
+    .kpi-card:hover {
+        transform: translateY(-3px);
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.85),
+            0 18px 44px rgba(2, 6, 23, .22);
+    }
+    .kpi-card::after {
+        content: '';
+        position: absolute;
+        top: -40%; right: -40%;
+        width: 140px; height: 140px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,255,255,.5), transparent 70%);
+        pointer-events: none;
+    }
+    .kpi-card .kpi-label {
+        font-size: 10.5px;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #475569;
+        font-weight: 700;
+    }
+    .kpi-card .kpi-value {
+        font-size: 30px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1.1;
+        margin-top: 6px;
+        letter-spacing: -.02em;
+    }
+    .kpi-card .kpi-sub {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 4px;
+    }
+    .kpi-card .kpi-icon {
+        position: absolute;
+        right: 16px;
+        top: 16px;
+        width: 42px;
+        height: 42px;
+        border-radius: 13px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 17px;
+        color: #fff;
+        box-shadow: 0 8px 20px rgba(0,0,0,.18);
+    }
+    .kpi-blue   .kpi-icon { background: linear-gradient(135deg,#3b82f6,#1d4ed8); }
+    .kpi-green  .kpi-icon { background: linear-gradient(135deg,#10b981,#047857); }
+    .kpi-pink   .kpi-icon { background: linear-gradient(135deg,#ec4899,#be185d); }
+    .kpi-amber  .kpi-icon { background: linear-gradient(135deg,#f59e0b,#b45309); }
+    .kpi-violet .kpi-icon { background: linear-gradient(135deg,#8b5cf6,#5b21b6); }
+    .kpi-red    .kpi-icon { background: linear-gradient(135deg,#ef4444,#991b1b); }
+    .kpi-teal   .kpi-icon { background: linear-gradient(135deg,#14b8a6,#0f766e); }
+    .kpi-slate  .kpi-icon { background: linear-gradient(135deg,#64748b,#1e293b); }
+
+    /* ─── Chart Panels (glass) ─── */
+    .chart-panel {
+        position: relative; z-index: 1;
+        background: rgba(255,255,255,.66);
+        backdrop-filter: blur(12px) saturate(150%);
+        -webkit-backdrop-filter: blur(12px) saturate(150%);
+        border: 1px solid rgba(255,255,255,.55);
+        border-radius: 18px;
+        padding: 18px 20px 20px;
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.7),
+            0 10px 32px rgba(2, 6, 23, .15);
+        height: 100%;
+        transition: box-shadow .25s ease, transform .25s ease;
+    }
+    .chart-panel:hover {
+        box-shadow:
+            inset 0 1px 0 rgba(255,255,255,.85),
+            0 18px 44px rgba(2, 6, 23, .22);
+    }
+    .chart-panel h6 {
+        font-size: 13px;
+        font-weight: 700;
+        color: #0f172a;
+        margin: 0 0 4px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        letter-spacing: -.005em;
+    }
+    .chart-panel .chart-subtitle {
+        font-size: 11.5px;
+        color: #64748b;
+        margin-bottom: 14px;
+    }
+    .chart-wrap { position: relative; height: 260px; }
+    .chart-wrap-lg { position: relative; height: 320px; }
+
+    /* ─── Mood Strip ─── */
+    .mood-strip {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+        margin-top: 6px;
+    }
+    .mood-bucket {
+        text-align: center;
+        padding: 10px 6px;
+        border-radius: 12px;
+        background: rgba(255,255,255,.6);
+        border: 1px solid rgba(255,255,255,.7);
+        backdrop-filter: blur(8px);
+        transition: transform .15s ease;
+    }
+    .mood-bucket:hover { transform: translateY(-2px); }
+    .mood-bucket .mb-emoji { font-size: 24px; }
+    .mood-bucket .mb-count { font-size: 19px; font-weight: 700; color: #0f172a; }
+    .mood-bucket .mb-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing:.04em; }
+
+    /* ─── Sección title (chip blanco) ─── */
+    .dash-section-title {
+        position: relative; z-index: 1;
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #fff;
+        text-transform: uppercase;
+        letter-spacing: .12em;
+        margin: 10px 4px 12px;
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 6px 12px;
+        background: rgba(15,23,42,.42);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255,255,255,.18);
+        border-radius: 999px;
+    }
+    .dash-section-title i { color: #fbbf24; }
+
+    /* ─── Tabla trabajadores ─── */
+    .worker-table th {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: #475569;
+        background: transparent !important;
+    }
+    .worker-table td {
+        background: transparent !important;
+        border-color: rgba(15,23,42,.06);
+    }
+    .worker-table tbody tr:hover td {
+        background: rgba(99, 102, 241, .06) !important;
+    }
+    .worker-name { display: flex; align-items: center; gap: 10px; }
+    .worker-avatar {
+        width: 34px; height: 34px;
+        border-radius: 50%;
+        background: linear-gradient(135deg,#6366f1,#8b5cf6);
+        color: #fff;
+        font-weight: 700;
+        font-size: 12px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(99,102,241,.35);
+    }
+    .progress-mini {
+        height: 6px; border-radius: 4px; background: rgba(15,23,42,.08); overflow: hidden;
+    }
+    .progress-mini > span {
+        display: block; height: 100%;
+        background: linear-gradient(90deg,#10b981,#3b82f6);
+    }
+    .happy-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 12px; border-radius: 999px;
+        font-size: 12px; font-weight: 700;
+        box-shadow: 0 2px 6px rgba(0,0,0,.06);
+    }
+    .happy-excellent { background:#dcfce7; color:#166534; }
+    .happy-good      { background:#dbeafe; color:#1d4ed8; }
+    .happy-neutral   { background:#fef3c7; color:#92400e; }
+    .happy-risk      { background:#fee2e2; color:#991b1b; }
+    .happy-critical  { background:#fecaca; color:#7f1d1d; }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center; padding: 30px 16px; color: #64748b;
+    }
+    .empty-state i { font-size: 28px; color: #cbd5e1; }
+
+    /* DataTables sobre glass */
+    .chart-panel .dataTables_wrapper .dataTables_filter input,
+    .chart-panel .dataTables_wrapper .dataTables_length select {
+        background: rgba(255,255,255,.85) !important;
+        border-radius: 10px !important;
+        border: 1px solid rgba(15,23,42,.10) !important;
+    }
+    .chart-panel .dataTables_wrapper .dataTables_info,
+    .chart-panel .dataTables_wrapper .dataTables_filter,
+    .chart-panel .dataTables_wrapper .dataTables_length,
+    .chart-panel .dataTables_wrapper .dataTables_paginate {
+        color: #475569 !important;
+    }
+    .chart-panel table.dataTable thead th {
+        background: rgba(248,250,252,.85) !important;
+    }
+
+    /* Mobile tweaks */
+    @media (max-width: 768px) {
+        .dash-hero h1 { font-size: 24px; }
+        .kpi-card .kpi-value { font-size: 26px; }
+        .chart-wrap-lg { height: 280px; }
+    }
+</style>
+
+{# Payload JSON precargado para filtrado cliente. #}
+{{ dashboard_payload|json_script:"dashboard-data" }}
+
+<!-- ───────── Hero ───────── -->
+<div class="dash-hero">
+    <h1><span class="live-dot"></span> Dashboard de Vacaciones</h1>
+    <p>Estadísticas globales y pulso emocional de la organización · actualizado en tiempo real</p>
+</div>
+
+<!-- ───────── Filtros ───────── -->
+<div class="dash-filters">
+    <div>
+        <label>Año</label>
+        <select id="filter-year" class="form-control"></select>
+    </div>
+    <div>
+        <label>Mes</label>
+        <select id="filter-month" class="form-control">
+            <option value="">Todos</option>
+            <option value="1">Enero</option>
+            <option value="2">Febrero</option>
+            <option value="3">Marzo</option>
+            <option value="4">Abril</option>
+            <option value="5">Mayo</option>
+            <option value="6">Junio</option>
+            <option value="7">Julio</option>
+            <option value="8">Agosto</option>
+            <option value="9">Septiembre</option>
+            <option value="10">Octubre</option>
+            <option value="11">Noviembre</option>
+            <option value="12">Diciembre</option>
+        </select>
+    </div>
+    <div>
+        <label>Área</label>
+        <select id="filter-area" class="form-control"></select>
+    </div>
+    <div>
+        <label>Trabajador</label>
+        <select id="filter-worker" class="form-control"></select>
+    </div>
+    <div>
+        <button id="filter-reset" class="btn btn-outline-secondary reset-btn">
+            <i class="fa-solid fa-rotate-left"></i> Reiniciar
+        </button>
+    </div>
+</div>
+
+<!-- ───────── KPI Cards ───────── -->
+<div class="dash-section-title"><i class="fa-solid fa-gauge-high"></i> Indicadores clave</div>
+<div class="kpi-grid">
+    <div class="kpi-card kpi-blue">
+        <div class="kpi-icon"><i class="fa-solid fa-users"></i></div>
+        <div class="kpi-label">Trabajadores</div>
+        <div class="kpi-value" data-kpi="workers">0</div>
+        <div class="kpi-sub" data-kpi="workers-sub">en el alcance</div>
+    </div>
+    <div class="kpi-card kpi-green">
+        <div class="kpi-icon"><i class="fa-solid fa-umbrella-beach"></i></div>
+        <div class="kpi-label">Días tomados</div>
+        <div class="kpi-value" data-kpi="days-taken">0</div>
+        <div class="kpi-sub" data-kpi="days-taken-sub">acumulables incluidos</div>
+    </div>
+    <div class="kpi-card kpi-pink">
+        <div class="kpi-icon"><i class="fa-solid fa-face-smile"></i></div>
+        <div class="kpi-label">Felicidad promedio</div>
+        <div class="kpi-value" data-kpi="happiness">0</div>
+        <div class="kpi-sub" data-kpi="happiness-sub">índice 0–100</div>
+    </div>
+    <div class="kpi-card kpi-violet">
+        <div class="kpi-icon"><i class="fa-solid fa-file-lines"></i></div>
+        <div class="kpi-label">Solicitudes</div>
+        <div class="kpi-value" data-kpi="requests">0</div>
+        <div class="kpi-sub" data-kpi="requests-sub">en el rango</div>
+    </div>
+    <div class="kpi-card kpi-teal">
+        <div class="kpi-icon"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="kpi-label">Tasa aprobación</div>
+        <div class="kpi-value" data-kpi="approval">0%</div>
+        <div class="kpi-sub" data-kpi="approval-sub">aprobadas / total</div>
+    </div>
+    <div class="kpi-card kpi-amber">
+        <div class="kpi-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <div class="kpi-label">Registros tardíos</div>
+        <div class="kpi-value" data-kpi="late">0</div>
+        <div class="kpi-sub" data-kpi="late-sub">capturados después</div>
+    </div>
+    <div class="kpi-card kpi-red">
+        <div class="kpi-icon"><i class="fa-solid fa-fire-flame-curved"></i></div>
+        <div class="kpi-label">En riesgo de burnout</div>
+        <div class="kpi-value" data-kpi="burnout">0</div>
+        <div class="kpi-sub" data-kpi="burnout-sub">ciclo terminando sin descansar</div>
+    </div>
+    <div class="kpi-card kpi-slate">
+        <div class="kpi-icon"><i class="fa-solid fa-business-time"></i></div>
+        <div class="kpi-label">Antigüedad promedio</div>
+        <div class="kpi-value" data-kpi="tenure">0</div>
+        <div class="kpi-sub" data-kpi="tenure-sub">años en la empresa</div>
+    </div>
+</div>
+
+<!-- ───────── Charts: distribución ───────── -->
+<div class="dash-section-title"><i class="fa-solid fa-chart-pie"></i> Distribución</div>
+<div class="row g-3 mb-3">
+    <div class="col-md-4">
+        <div class="chart-panel">
+            <h6><i class="fa-solid fa-traffic-light text-primary"></i> Estado de solicitudes</h6>
+            <p class="chart-subtitle">Aprobadas, rechazadas, pendientes y canceladas</p>
+            <div class="chart-wrap"><canvas id="chart-status"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="chart-panel">
+            <h6><i class="fa-solid fa-shapes text-success"></i> Tipo de solicitud</h6>
+            <p class="chart-subtitle">Día completo vs acumulables (llegada / salida)</p>
+            <div class="chart-wrap"><canvas id="chart-kind"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="chart-panel">
+            <h6><i class="fa-solid fa-heart-pulse text-danger"></i> Pulso emocional</h6>
+            <p class="chart-subtitle">Cuántos trabajadores caen en cada rango</p>
+            <div class="mood-strip" id="mood-strip"></div>
+            <div class="chart-wrap" style="height: 170px; margin-top: 10px;">
+                <canvas id="chart-mood"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ───────── Charts: tiempo y áreas ───────── -->
+<div class="dash-section-title"><i class="fa-solid fa-chart-line"></i> Tendencias</div>
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="chart-panel">
+            <h6><i class="fa-solid fa-calendar-week text-primary"></i> Solicitudes por mes</h6>
+            <p class="chart-subtitle">Comportamiento del año seleccionado</p>
+            <div class="chart-wrap-lg"><canvas id="chart-monthly"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="chart-panel">
+            <h6><i class="fa-solid fa-calendar-day text-warning"></i> Día de la semana favorito</h6>
+            <p class="chart-subtitle">¿En qué día piden más permisos?</p>
+            <div class="chart-wrap-lg"><canvas id="chart-weekday"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-6">
+        <div class="chart-panel">
+            <h6><i class="fa-solid fa-sitemap text-info"></i> Solicitudes por área</h6>
+            <p class="chart-subtitle">Top de áreas que más permisos generan</p>
+            <div class="chart-wrap-lg"><canvas id="chart-area"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="chart-panel">
+            <h6><i class="fa-solid fa-face-laugh-beam text-pink"></i> Felicidad por área</h6>
+            <p class="chart-subtitle">Índice promedio del clima emocional por área</p>
+            <div class="chart-wrap-lg"><canvas id="chart-happy-area"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-md-5">
+        <div class="chart-panel">
+            <h6><i class="fa-solid fa-radar text-violet"></i> Indicadores globales</h6>
+            <p class="chart-subtitle">Ciclo, actividad, aprobación, puntualidad y constancia</p>
+            <div class="chart-wrap-lg"><canvas id="chart-radar"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <div class="chart-panel">
+            <h6><i class="fa-solid fa-ranking-star text-warning"></i> Top 5 con más permisos acumulables</h6>
+            <p class="chart-subtitle">Llegadas tarde y salidas anticipadas</p>
+            <div class="chart-wrap-lg"><canvas id="chart-top-partials"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- ───────── Tabla de trabajadores ───────── -->
+<div class="dash-section-title"><i class="fa-solid fa-list-check"></i> Detalle por trabajador</div>
+<div class="chart-panel" style="padding: 18px;">
+    <table id="workers-table" class="table table-hover worker-table" style="width:100%">
+        <thead>
+            <tr>
+                <th>Trabajador</th>
+                <th>Área</th>
+                <th class="text-center">Asignados</th>
+                <th class="text-center">Usados</th>
+                <th class="text-center">Restantes</th>
+                <th class="text-center">Uso</th>
+                <th class="text-center">Acumulables</th>
+                <th class="text-center">Tardíos</th>
+                <th class="text-center">Rechazos</th>
+                <th class="text-center" title="Felicidad del ciclo actual (uso vs progreso del año)">Felicidad actual</th>
+            </tr>
+        </thead>
+        <tbody id="workers-tbody"></tbody>
+    </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<script>
+(function () {
+    const RAW = JSON.parse(document.getElementById('dashboard-data').textContent);
+
+    // ────────── Helpers ──────────
+    const MONTHS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    const WEEKDAYS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+    const STATUS_LABELS = {
+        PENDING_LEADER: 'Pendiente Líder',
+        PENDING_HR: 'Pendiente RH',
+        APPROVED: 'Aprobada',
+        REJECTED: 'Rechazada',
+        CANCELLED: 'Cancelada',
+    };
+    const STATUS_COLORS = {
+        PENDING_LEADER: '#f59e0b',
+        PENDING_HR: '#3b82f6',
+        APPROVED: '#10b981',
+        REJECTED: '#ef4444',
+        CANCELLED: '#9ca3af',
+    };
+    const KIND_LABELS = {
+        FULL_DAY: 'Día completo',
+        PARTIAL_LATE: 'Llegada tarde',
+        PARTIAL_EARLY: 'Salida anticipada',
+    };
+
+    const workersById = new Map(RAW.workers.map(w => [w.id, w]));
+
+    // ────────── Estado de filtros ──────────
+    const state = {
+        year: String(RAW.current_year),
+        month: '',
+        areaId: '',
+        workerId: '',
+    };
+
+    // ────────── Filtrado ──────────
+    function filteredRequests() {
+        return RAW.requests.filter(r => {
+            if (state.year && String(r.year) !== state.year) return false;
+            if (state.month && String(r.month) !== state.month) return false;
+            const w = workersById.get(r.employee_id);
+            if (state.areaId && w && String(w.area_id || '') !== state.areaId) return false;
+            if (state.workerId && String(r.employee_id) !== state.workerId) return false;
+            return true;
+        });
+    }
+
+    function filteredWorkers() {
+        return RAW.workers.filter(w => {
+            if (state.areaId && String(w.area_id || '') !== state.areaId) return false;
+            if (state.workerId && String(w.id) !== state.workerId) return false;
+            return true;
+        });
+    }
+
+    // ────────── Métricas por trabajador ──────────
+    // Devuelve un mapa employee_id → métricas considerando solo solicitudes filtradas.
+    function workerMetrics(reqs, workers) {
+        const m = new Map();
+        workers.forEach(w => {
+            m.set(w.id, {
+                worker: w,
+                full_used: 0,
+                partials_approved: 0,
+                partials_late_count: 0,
+                partials_early_count: 0,
+                pending: 0,
+                rejected: 0,
+                cancelled: 0,
+                approved_total: 0,
+                late_registrations: 0,
+                total: 0,
+                last_date: null,
+            });
+        });
+        reqs.forEach(r => {
+            const rec = m.get(r.employee_id);
+            if (!rec) return;
+            rec.total += 1;
+            if (r.late_registration) rec.late_registrations += 1;
+            if (r.status === 'APPROVED') {
+                rec.approved_total += 1;
+                if (r.kind === 'FULL_DAY') rec.full_used += 1;
+                if (r.kind === 'PARTIAL') {
+                    rec.partials_approved += 1;
+                    if (r.partial_type === 'LATE') rec.partials_late_count += 1;
+                    if (r.partial_type === 'EARLY_LEAVE') rec.partials_early_count += 1;
+                }
+            } else if (r.status === 'REJECTED') rec.rejected += 1;
+            else if (r.status === 'CANCELLED') rec.cancelled += 1;
+            else rec.pending += 1;
+            if (!rec.last_date || r.date > rec.last_date) rec.last_date = r.date;
+        });
+        // ─────────────────────────────────────────────────────────
+        // FELICIDAD ACTUAL — basada en el ciclo de vacaciones del trabajador
+        // ─────────────────────────────────────────────────────────
+        // Factores:
+        //   · Progreso del ciclo (qué tanto del año ya transcurrió)
+        //   · Cuántos días ha tomado en ese ciclo (uso vs allowance)
+        //   · Riesgo de burnout: si el ciclo está casi por terminar y
+        //     no ha tomado sus vacaciones, cae a crítico
+        //
+        // La antigüedad NO afecta — un trabajador antiguo que aprovecha bien
+        // su ciclo está igual de feliz que uno nuevo que también lo aprovecha.
+        // ─────────────────────────────────────────────────────────
+        m.forEach(rec => {
+            rec.partials_days_used = Math.floor(rec.partials_approved / 3);
+            rec.days_used = rec.full_used + rec.partials_days_used;
+            const allowance = Math.max(rec.worker.allowance || 0, 0);
+            rec.days_remaining = Math.max(allowance - rec.days_used, 0);
+            rec.usage_pct = allowance > 0
+                ? Math.min(100, (rec.days_used / allowance) * 100)
+                : 0;
+
+            const cycleProgress = rec.worker.cycle_progress_pct == null
+                ? null
+                : Math.max(0, Math.min(100, rec.worker.cycle_progress_pct));
+
+            // ───── CYCLIC SCORE ─────
+            // Compara uso real vs uso esperado a esta altura del ciclo.
+            //   · Inicio del ciclo (<25%): casi no penaliza el bajo uso.
+            //   · Medio del ciclo: penalización proporcional.
+            //   · Recta final (>85%): penalización fuerte, está perdiendo días.
+            let cyclic;
+            if (allowance === 0 || cycleProgress == null) {
+                cyclic = 70;  // sin datos suficientes → neutral
+            } else if (rec.usage_pct >= cycleProgress) {
+                cyclic = 100;
+            } else {
+                const deficit = cycleProgress - rec.usage_pct;
+                let tolerance;
+                if (cycleProgress < 25) tolerance = 0.3;
+                else if (cycleProgress < 60) tolerance = 1.0;
+                else if (cycleProgress < 85) tolerance = 1.6;
+                else tolerance = 2.5;   // recta final: pierde días no usados
+                cyclic = Math.max(0, 100 - deficit * tolerance);
+            }
+
+            // ───── Métricas informativas (no influyen en la felicidad) ─────
+            const activityCount = rec.full_used + rec.partials_approved;
+            const activity = Math.min(100, (activityCount / 8) * 100);
+            const approval = rec.total > 0
+                ? (rec.approved_total / rec.total) * 100
+                : 60;
+
+            rec.cycle_progress = cycleProgress;
+            rec.cyclic_score = cyclic;
+            rec.activity_score = activity;
+            rec.approval_score = approval;
+            rec.discipline_score = Math.max(0, 100 - rec.late_registrations * 6);
+
+            // Felicidad = puramente cíclica.
+            rec.happiness = Math.round(cyclic);
+
+            // ───── Riesgo de burnout ─────
+            // Solo dispara cuando el ciclo está avanzado y el trabajador no
+            // ha tomado lo suficiente.
+            if (allowance === 0 || cycleProgress == null) {
+                rec.burnout_level = 'none';
+            } else if (cyclic < 25) {
+                rec.burnout_level = 'critical';
+            } else if (cyclic < 50) {
+                rec.burnout_level = 'high';
+            } else if (cyclic < 70) {
+                rec.burnout_level = 'moderate';
+            } else {
+                rec.burnout_level = 'low';
+            }
+            rec.burnout_risk = rec.burnout_level === 'critical'
+                            || rec.burnout_level === 'high';
+        });
+        return m;
+    }
+
+    function happyBucket(score) {
+        if (score >= 80) return { key: 'excellent', emoji: '😄', label: 'Excelente', cls: 'happy-excellent' };
+        if (score >= 60) return { key: 'good',      emoji: '🙂', label: 'Bien',      cls: 'happy-good' };
+        if (score >= 40) return { key: 'neutral',   emoji: '😐', label: 'Neutral',   cls: 'happy-neutral' };
+        if (score >= 20) return { key: 'risk',      emoji: '😟', label: 'En riesgo', cls: 'happy-risk' };
+        return                  { key: 'critical', emoji: '😫', label: 'Crítico',   cls: 'happy-critical' };
+    }
+
+    // ────────── Charts ──────────
+    const charts = {};
+    const CHART_OK = typeof Chart !== 'undefined';
+    if (CHART_OK) {
+        Chart.defaults.font.family = "'Poppins', sans-serif";
+        Chart.defaults.color = '#475569';
+        Chart.defaults.plugins.legend.labels.boxWidth = 10;
+        Chart.defaults.plugins.legend.labels.boxHeight = 10;
+        Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    } else {
+        console.warn('[dashboard] Chart.js no se cargó. Las gráficas no se renderizarán.');
+    }
+
+    function makeOrUpdate(id, config) {
+        if (!CHART_OK) return;
+        try {
+            if (charts[id]) {
+                charts[id].data = config.data;
+                if (config.options) charts[id].options = config.options;
+                charts[id].update();
+                return;
+            }
+            const ctx = document.getElementById(id);
+            if (!ctx) return;
+            charts[id] = new Chart(ctx, config);
+        } catch (err) {
+            console.error('[dashboard] error al renderizar', id, err);
+        }
+    }
+
+    // ────────── Render ──────────
+    function render() {
+        const reqs = filteredRequests();
+        const workers = filteredWorkers();
+        const metrics = workerMetrics(reqs, workers);
+        const metricList = Array.from(metrics.values());
+
+        // ───── KPIs ─────
+        const totalWorkers = workers.length;
+        const totalDaysTaken = metricList.reduce((s, m) => s + m.days_used, 0);
+        const happyAvg = metricList.length
+            ? Math.round(metricList.reduce((s, m) => s + m.happiness, 0) / metricList.length)
+            : 0;
+        const totalReq = reqs.length;
+        const approvedCount = reqs.filter(r => r.status === 'APPROVED').length;
+        const approvalRate = totalReq ? Math.round((approvedCount / totalReq) * 100) : 0;
+        const lateCount = reqs.filter(r => r.late_registration).length;
+        const burnoutCount = metricList.filter(m => m.burnout_risk).length;
+        const tenureVals = workers.map(w => w.tenure_years).filter(v => v !== null && v !== undefined);
+        const tenureAvg = tenureVals.length
+            ? (tenureVals.reduce((s,v)=>s+v,0) / tenureVals.length).toFixed(1)
+            : '–';
+
+        setKpi('workers', totalWorkers);
+        setKpi('workers-sub', `${RAW.areas.length} áreas en total`);
+        setKpi('days-taken', totalDaysTaken);
+        const fullDays = reqs.filter(r => r.status === 'APPROVED' && r.kind === 'FULL_DAY').length;
+        const partialApproved = reqs.filter(r => r.status === 'APPROVED' && r.kind === 'PARTIAL').length;
+        setKpi('days-taken-sub', `${fullDays} completos + ${partialApproved} parciales`);
+        setKpi('happiness', happyAvg);
+        setKpi('happiness-sub', happyBucket(happyAvg).label);
+        setKpi('requests', totalReq);
+        setKpi('requests-sub', `${approvedCount} aprobadas`);
+        setKpi('approval', approvalRate + '%');
+        setKpi('approval-sub', `${approvedCount} de ${totalReq}`);
+        setKpi('late', lateCount);
+        const latePct = totalReq ? Math.round((lateCount / totalReq) * 100) : 0;
+        setKpi('late-sub', `${latePct}% del total`);
+        setKpi('burnout', burnoutCount);
+        const burnoutPct = totalWorkers ? Math.round((burnoutCount / totalWorkers) * 100) : 0;
+        setKpi('burnout-sub', `${burnoutPct}% del equipo`);
+        setKpi('tenure', tenureAvg);
+        setKpi('tenure-sub', 'años promedio');
+
+        // ───── Chart: estado de solicitudes ─────
+        const statusKeys = ['PENDING_LEADER','PENDING_HR','APPROVED','REJECTED','CANCELLED'];
+        const statusCounts = statusKeys.map(k => reqs.filter(r => r.status === k).length);
+        makeOrUpdate('chart-status', {
+            type: 'doughnut',
+            data: {
+                labels: statusKeys.map(k => STATUS_LABELS[k]),
+                datasets: [{
+                    data: statusCounts,
+                    backgroundColor: statusKeys.map(k => STATUS_COLORS[k]),
+                    borderWidth: 0,
+                }],
+            },
+            options: {
+                cutout: '62%',
+                plugins: { legend: { position: 'bottom' } },
+                maintainAspectRatio: false,
+            },
+        });
+
+        // ───── Chart: tipo ─────
+        const kindFull = reqs.filter(r => r.kind === 'FULL_DAY').length;
+        const kindLate = reqs.filter(r => r.kind === 'PARTIAL' && r.partial_type === 'LATE').length;
+        const kindEarly = reqs.filter(r => r.kind === 'PARTIAL' && r.partial_type === 'EARLY_LEAVE').length;
+        makeOrUpdate('chart-kind', {
+            type: 'doughnut',
+            data: {
+                labels: ['Día completo','Llegada tarde','Salida anticipada'],
+                datasets: [{
+                    data: [kindFull, kindLate, kindEarly],
+                    backgroundColor: ['#10b981','#f59e0b','#8b5cf6'],
+                    borderWidth: 0,
+                }],
+            },
+            options: {
+                cutout: '62%',
+                plugins: { legend: { position: 'bottom' } },
+                maintainAspectRatio: false,
+            },
+        });
+
+        // ───── Pulso emocional (mini gráfico + tiras) ─────
+        const buckets = { excellent:0, good:0, neutral:0, risk:0, critical:0 };
+        metricList.forEach(m => { buckets[happyBucket(m.happiness).key] += 1; });
+        const moodStrip = document.getElementById('mood-strip');
+        moodStrip.innerHTML = '';
+        [
+            ['excellent','😄','Excelente'],
+            ['good','🙂','Bien'],
+            ['neutral','😐','Neutral'],
+            ['risk','😟','En riesgo'],
+            ['critical','😫','Crítico'],
+        ].forEach(([k, emoji, label]) => {
+            const div = document.createElement('div');
+            div.className = 'mood-bucket';
+            div.innerHTML = `<div class="mb-emoji">${emoji}</div>
+                             <div class="mb-count">${buckets[k]}</div>
+                             <div class="mb-label">${label}</div>`;
+            moodStrip.appendChild(div);
+        });
+        makeOrUpdate('chart-mood', {
+            type: 'bar',
+            data: {
+                labels: ['Excelente','Bien','Neutral','En riesgo','Crítico'],
+                datasets: [{
+                    data: [buckets.excellent, buckets.good, buckets.neutral, buckets.risk, buckets.critical],
+                    backgroundColor: ['#10b981','#3b82f6','#f59e0b','#ef4444','#7f1d1d'],
+                    borderRadius: 6,
+                }],
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
+                maintainAspectRatio: false,
+            },
+        });
+
+        // ───── Chart: solicitudes por mes ─────
+        const monthlyCounts = new Array(12).fill(0);
+        const monthlyApproved = new Array(12).fill(0);
+        reqs.forEach(r => {
+            monthlyCounts[r.month - 1] += 1;
+            if (r.status === 'APPROVED') monthlyApproved[r.month - 1] += 1;
+        });
+        makeOrUpdate('chart-monthly', {
+            type: 'bar',
+            data: {
+                labels: MONTHS,
+                datasets: [
+                    { label: 'Total', data: monthlyCounts, backgroundColor: '#c7d2fe', borderRadius: 6 },
+                    { label: 'Aprobadas', data: monthlyApproved, backgroundColor: '#4f46e5', borderRadius: 6 },
+                ],
+            },
+            options: {
+                plugins: { legend: { position: 'bottom' } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+                maintainAspectRatio: false,
+            },
+        });
+
+        // ───── Chart: día de la semana ─────
+        const weekdayCounts = new Array(7).fill(0);
+        reqs.forEach(r => { weekdayCounts[r.weekday] += 1; });
+        makeOrUpdate('chart-weekday', {
+            type: 'bar',
+            data: {
+                labels: WEEKDAYS,
+                datasets: [{
+                    data: weekdayCounts,
+                    backgroundColor: ['#f97316','#f59e0b','#10b981','#3b82f6','#8b5cf6','#ec4899','#64748b'],
+                    borderRadius: 6,
+                }],
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+                maintainAspectRatio: false,
+            },
+        });
+
+        // ───── Chart: por área ─────
+        const areaCounts = new Map();
+        reqs.forEach(r => {
+            const w = workersById.get(r.employee_id);
+            const name = w ? w.area : 'Sin área';
+            areaCounts.set(name, (areaCounts.get(name) || 0) + 1);
+        });
+        const areaSorted = Array.from(areaCounts.entries()).sort((a,b)=>b[1]-a[1]).slice(0, 10);
+        makeOrUpdate('chart-area', {
+            type: 'bar',
+            data: {
+                labels: areaSorted.map(a => a[0]),
+                datasets: [{
+                    data: areaSorted.map(a => a[1]),
+                    backgroundColor: '#3b82f6',
+                    borderRadius: 6,
+                }],
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
+                maintainAspectRatio: false,
+            },
+        });
+
+        // ───── Chart: felicidad por área ─────
+        const areaHappy = new Map();
+        metricList.forEach(m => {
+            const name = m.worker.area || 'Sin área';
+            if (!areaHappy.has(name)) areaHappy.set(name, []);
+            areaHappy.get(name).push(m.happiness);
+        });
+        const happyAreaSorted = Array.from(areaHappy.entries())
+            .map(([n, arr]) => [n, arr.reduce((s,v)=>s+v,0) / arr.length])
+            .sort((a,b)=>b[1]-a[1])
+            .slice(0, 10);
+        makeOrUpdate('chart-happy-area', {
+            type: 'bar',
+            data: {
+                labels: happyAreaSorted.map(a => a[0]),
+                datasets: [{
+                    data: happyAreaSorted.map(a => Math.round(a[1])),
+                    backgroundColor: happyAreaSorted.map(a => {
+                        const v = a[1];
+                        if (v >= 80) return '#10b981';
+                        if (v >= 60) return '#3b82f6';
+                        if (v >= 40) return '#f59e0b';
+                        if (v >= 20) return '#ef4444';
+                        return '#7f1d1d';
+                    }),
+                    borderRadius: 6,
+                }],
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 100 } },
+                maintainAspectRatio: false,
+            },
+        });
+
+        // ───── Chart: radar de indicadores ─────
+        const avg = (arr) => arr.length ? arr.reduce((s,v)=>s+v,0)/arr.length : 0;
+        const cyclicAvg = Math.round(avg(metricList.map(m => m.cyclic_score)));
+        const actAvg    = Math.round(avg(metricList.map(m => m.activity_score)));
+        const apprAvg   = Math.round(avg(metricList.map(m => m.approval_score)));
+        const punctAvg  = Math.round(avg(metricList.map(m => m.discipline_score)));
+        const constancyAvg = (() => {
+            const months = new Set(reqs.map(r => r.month));
+            return Math.min(100, Math.round((months.size / 12) * 100));
+        })();
+        makeOrUpdate('chart-radar', {
+            type: 'radar',
+            data: {
+                labels: ['Ciclo','Actividad','Aprobación','Puntualidad','Constancia'],
+                datasets: [{
+                    label: 'Promedio',
+                    data: [cyclicAvg, actAvg, apprAvg, punctAvg, constancyAvg],
+                    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+                    borderColor: '#8b5cf6',
+                    pointBackgroundColor: '#8b5cf6',
+                    borderWidth: 2,
+                }],
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    r: { suggestedMin: 0, suggestedMax: 100, ticks: { stepSize: 25 } },
+                },
+                maintainAspectRatio: false,
+            },
+        });
+
+        // ───── Chart: top 5 con más parciales ─────
+        const topPartials = metricList
+            .map(m => ({
+                name: m.worker.name,
+                late: m.partials_late_count,
+                early: m.partials_early_count,
+            }))
+            .filter(x => (x.late + x.early) > 0)
+            .sort((a,b) => (b.late+b.early) - (a.late+a.early))
+            .slice(0, 5);
+        makeOrUpdate('chart-top-partials', {
+            type: 'bar',
+            data: {
+                labels: topPartials.map(x => x.name),
+                datasets: [
+                    { label: 'Llegadas tarde', data: topPartials.map(x => x.late),  backgroundColor: '#f59e0b', borderRadius: 6 },
+                    { label: 'Salidas anticipadas', data: topPartials.map(x => x.early), backgroundColor: '#8b5cf6', borderRadius: 6 },
+                ],
+            },
+            options: {
+                indexAxis: 'y',
+                plugins: { legend: { position: 'bottom' } },
+                scales: {
+                    x: { stacked: true, beginAtZero: true, ticks: { precision: 0 } },
+                    y: { stacked: true },
+                },
+                maintainAspectRatio: false,
+            },
+        });
+
+        // ───── Tabla de trabajadores ─────
+        renderWorkerTable(metricList);
+    }
+
+    function setKpi(name, value) {
+        document.querySelectorAll(`[data-kpi="${name}"]`).forEach(el => el.textContent = value);
+    }
+
+    let workersDt = null;
+    function renderWorkerTable(metricList) {
+        const tbody = document.getElementById('workers-tbody');
+        const rows = metricList.map(m => {
+            const w = m.worker;
+            const cyclic = Math.round(m.cyclic_score);
+            const bucket = happyBucket(cyclic);
+            const usage = Math.round(m.usage_pct);
+            return `<tr>
+                <td>
+                    <div class="worker-name">
+                        <div class="worker-avatar">${w.initials}</div>
+                        <div>
+                            <div style="font-weight:600;color:#0f172a;">${escapeHtml(w.name)}</div>
+                            <div style="font-size:11px;color:#94a3b8;">${escapeHtml(w.position || '')}</div>
+                        </div>
+                    </div>
+                </td>
+                <td>${escapeHtml(w.area || 'Sin área')}</td>
+                <td class="text-center">${w.allowance}</td>
+                <td class="text-center">${m.days_used}</td>
+                <td class="text-center">${m.days_remaining}</td>
+                <td>
+                    <div class="progress-mini"><span style="width:${usage}%"></span></div>
+                    <div style="font-size:11px;color:#64748b;text-align:right;margin-top:2px;">${usage}%</div>
+                </td>
+                <td class="text-center">${m.partials_approved}</td>
+                <td class="text-center">${m.late_registrations}</td>
+                <td class="text-center">${m.rejected}</td>
+                <td class="text-center" title="Felicidad actual: ${cyclic}/100 · uso ${usage}% vs ciclo ${Math.round(m.cycle_progress ?? 0)}%">
+                    <span class="happy-pill ${bucket.cls}">${bucket.emoji} ${cyclic}</span>
+                </td>
+            </tr>`;
+        }).join('');
+
+        if (workersDt) {
+            workersDt.destroy();
+            workersDt = null;
+        }
+        tbody.innerHTML = rows || `<tr><td colspan="10" class="empty-state">
+            <i class="fa-solid fa-inbox"></i><br>Sin datos para los filtros seleccionados</td></tr>`;
+        if (rows) {
+            workersDt = new DataTable('#workers-table', {
+                pageLength: 10,
+                // Por defecto ordena por felicidad ASC: los de mayor riesgo arriba.
+                order: [[9, 'asc']],
+                language: { url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json' },
+                responsive: true,
+            });
+        }
+    }
+
+    function escapeHtml(s) {
+        if (s == null) return '';
+        return String(s)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    // ────────── Inicializar selects ──────────
+    function initFilters() {
+        const yearSel = document.getElementById('filter-year');
+        RAW.years.forEach(y => {
+            const opt = document.createElement('option');
+            opt.value = y;
+            opt.textContent = y;
+            if (String(y) === state.year) opt.selected = true;
+            yearSel.appendChild(opt);
+        });
+
+        const areaSel = document.getElementById('filter-area');
+        areaSel.appendChild(new Option('Todas las áreas', ''));
+        RAW.areas.forEach(a => {
+            areaSel.appendChild(new Option(a.name, a.id || ''));
+        });
+
+        const workerSel = document.getElementById('filter-worker');
+        workerSel.appendChild(new Option('Todos los trabajadores', ''));
+        RAW.workers
+            .slice()
+            .sort((a,b) => a.name.localeCompare(b.name))
+            .forEach(w => workerSel.appendChild(new Option(w.name, w.id)));
+
+        // Select2 sobre cada uno
+        $('#filter-year, #filter-month, #filter-area, #filter-worker').select2({
+            minimumResultsForSearch: 8,
+            width: '100%',
+        });
+
+        $('#filter-year').on('change', e => { state.year = e.target.value; render(); });
+        $('#filter-month').on('change', e => { state.month = e.target.value; render(); });
+        $('#filter-area').on('change', e => { state.areaId = e.target.value; render(); });
+        $('#filter-worker').on('change', e => { state.workerId = e.target.value; render(); });
+
+        document.getElementById('filter-reset').addEventListener('click', () => {
+            state.year = String(RAW.current_year);
+            state.month = '';
+            state.areaId = '';
+            state.workerId = '';
+            $('#filter-year').val(state.year).trigger('change.select2');
+            $('#filter-month').val('').trigger('change.select2');
+            $('#filter-area').val('').trigger('change.select2');
+            $('#filter-worker').val('').trigger('change.select2');
+            render();
+        });
+    }
+
+    function safeRender() {
+        try { render(); }
+        catch (err) {
+            console.error('[dashboard] render() falló:', err);
+            const cont = document.querySelector('.dash-hero');
+            if (cont && !document.getElementById('dash-error')) {
+                const div = document.createElement('div');
+                div.id = 'dash-error';
+                div.style.cssText = 'background:rgba(239,68,68,.9);color:#fff;padding:10px 14px;border-radius:10px;margin-top:8px;font-size:13px;';
+                div.textContent = '⚠ Error al renderizar el dashboard: ' + (err && err.message ? err.message : err);
+                cont.appendChild(div);
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        try { initFilters(); } catch (err) { console.error('[dashboard] initFilters falló:', err); }
+        safeRender();
+    });
+    // Si el DOM ya está listo (script async/diferido), dispara directo.
+    if (document.readyState !== 'loading') {
+        try { initFilters(); } catch (_) {}
+        safeRender();
+    }
+})();
+</script>
+{% endblock %}

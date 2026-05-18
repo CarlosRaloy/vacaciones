@@ -3,6 +3,7 @@ from datetime import date, datetime, time
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.db.models import Q
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -33,6 +34,26 @@ def _is_leader(user) -> bool:
     if _is_admin(user):
         return True
     return bool(getattr(getattr(user, 'profile', None), 'is_leader', False))
+
+
+def _is_auditor(user) -> bool:
+    if _is_admin(user):
+        return True
+    return bool(getattr(getattr(user, 'profile', None), 'is_auditor', False))
+
+
+def _search_filter(qs, q: str):
+    """Filtra VacationRequest por texto libre — nombre, usuario, nómina, motivo."""
+    if not q:
+        return qs
+    return qs.filter(
+        Q(employee__first_name__icontains=q)
+        | Q(employee__last_name__icontains=q)
+        | Q(employee__username__icontains=q)
+        | Q(employee__profile__payroll_number__icontains=q)
+        | Q(reason__icontains=q)
+        | Q(late_note__icontains=q)
+    )
 
 
 def _parse_date(value: str) -> date:
@@ -139,6 +160,7 @@ def calendar_view(request):
         'is_hr': _is_hr(request.user),
         'is_leader': _is_leader(request.user),
         'is_admin': is_admin,
+        'is_auditor': _is_auditor(request.user),
         'boss': boss,
         'employees': employees,
         'balance': balance,
@@ -148,10 +170,30 @@ def calendar_view(request):
 @login_required
 def events_json(request):
     scope = request.GET.get('scope', 'mine')
-    qs = VacationRequest.objects.select_related('employee')
+    qs = VacationRequest.objects.select_related(
+        'employee', 'leader_acted_by', 'hr_acted_by', 'cancelled_by', 'captured_by',
+    )
 
-    if scope == 'all' and (_is_hr(request.user) or _is_leader(request.user)):
-        qs = qs.exclude(status=VacationRequest.Status.CANCELLED)
+    # Quién ve qué cuando scope=all:
+    #  · admin / RH / auditor → toda la organización (sin canceladas)
+    #  · líder puro → sus subordinados + él mismo (sin canceladas)
+    #  · cualquier otro → solo sus propias solicitudes
+    is_global = _is_hr(request.user) or _is_auditor(request.user)  # ambos incluyen admin
+    is_leader = _is_leader(request.user)
+
+    if scope == 'all':
+        if is_global:
+            qs = qs.exclude(status=VacationRequest.Status.CANCELLED)
+        elif is_leader:
+            sub_ids = list(
+                User.objects.filter(profile__boss=request.user).values_list('id', flat=True)
+            )
+            sub_ids.append(request.user.id)
+            qs = qs.filter(employee_id__in=sub_ids).exclude(
+                status=VacationRequest.Status.CANCELLED,
+            )
+        else:
+            qs = qs.filter(employee=request.user)
     else:
         qs = qs.filter(employee=request.user)
 
@@ -199,6 +241,26 @@ def events_json(request):
                 ) if r.captured_by_id else '',
                 'late_registration': r.late_registration,
                 'late_note': r.late_note,
+                'requested_to_leader_id': r.requested_to_leader_id,
+                # Auditoría: quién aprobó / cancelló y cuándo
+                'leader_acted_by': (
+                    r.leader_acted_by.get_full_name() or r.leader_acted_by.username
+                ) if r.leader_acted_by_id else '',
+                'leader_acted_at': (
+                    timezone.localtime(r.leader_acted_at).strftime('%d/%m/%Y %H:%M')
+                ) if r.leader_acted_at else '',
+                'hr_acted_by': (
+                    r.hr_acted_by.get_full_name() or r.hr_acted_by.username
+                ) if r.hr_acted_by_id else '',
+                'hr_acted_at': (
+                    timezone.localtime(r.hr_acted_at).strftime('%d/%m/%Y %H:%M')
+                ) if r.hr_acted_at else '',
+                'cancelled_by': (
+                    r.cancelled_by.get_full_name() or r.cancelled_by.username
+                ) if r.cancelled_by_id else '',
+                'cancelled_at': (
+                    timezone.localtime(r.cancelled_at).strftime('%d/%m/%Y %H:%M')
+                ) if r.cancelled_at else '',
             },
         })
     return JsonResponse({'events': events})
@@ -355,16 +417,19 @@ def create_request(request):
 def leader_inbox(request):
     if not _is_leader(request.user):
         return HttpResponseForbidden()
+    q = request.GET.get('q', '').strip()
     qs = VacationRequest.objects.filter(
         status=VacationRequest.Status.PENDING_LEADER,
-    ).select_related('employee', 'requested_to_leader')
+    ).select_related('employee', 'employee__profile', 'requested_to_leader')
     # El líder solo ve solicitudes asignadas a él; admin ve todas.
     if not _is_admin(request.user):
         qs = qs.filter(requested_to_leader=request.user)
+    qs = _search_filter(qs, q)
     pending = qs.order_by('date')
     return render(request, 'vacations/leader_inbox.html', {
         'pending': pending,
         'is_admin': _is_admin(request.user),
+        'q': q,
     })
 
 
@@ -375,22 +440,33 @@ def hr_inbox(request):
     # RH y admin ven TODAS las solicitudes; el botón de aprobar se activa
     # contextualmente según el estado (y rol).
     status_filter = request.GET.get('status', '')
-    qs = VacationRequest.objects.select_related(
-        'employee', 'requested_to_leader', 'leader_acted_by', 'hr_acted_by',
+    q = request.GET.get('q', '').strip()
+
+    base_qs = VacationRequest.objects.select_related(
+        'employee', 'employee__profile', 'requested_to_leader',
+        'leader_acted_by', 'hr_acted_by', 'cancelled_by',
     )
-    valid_statuses = dict(VacationRequest.Status.choices)
-    if status_filter in valid_statuses:
-        qs = qs.filter(status=status_filter)
-    requests_list = qs.order_by('-date', '-created')
+    base_qs = _search_filter(base_qs, q)
+
+    # Conteos por estado: respetan la búsqueda activa para que las píldoras
+    # muestren cuántos resultados coincidentes hay en cada estado.
     counts = {
-        s: VacationRequest.objects.filter(status=s).count()
+        s: base_qs.filter(status=s).count()
         for s, _ in VacationRequest.Status.choices
     }
-    counts['ALL'] = VacationRequest.objects.count()
+    counts['ALL'] = base_qs.count()
+
+    valid_statuses = dict(VacationRequest.Status.choices)
+    qs = base_qs
+    if status_filter in valid_statuses:
+        qs = qs.filter(status=status_filter)
+
+    requests_list = qs.order_by('-date', '-created')
     return render(request, 'vacations/hr_inbox.html', {
         'requests': requests_list,
         'is_admin': _is_admin(request.user),
         'status_filter': status_filter,
+        'q': q,
         'counts': counts,
         'STATUS': VacationRequest.Status,
     })
@@ -460,14 +536,26 @@ def hr_act(request, pk):
 @require_POST
 def cancel_request(request, pk):
     """
-    Trabajador (dueño): solo si la fecha aún no llegó.
-    Líder, RH o admin: en cualquier momento, incluso aprobada.
+    Solo se pueden cancelar solicitudes que sigan pendientes
+    (PENDING_LEADER o PENDING_HR). Una vez aprobada — o rechazada /
+    cancelada — la solicitud queda en firme.
+
+    Permisos:
+      · Trabajador (dueño): puede cancelar su propia solicitud pendiente
+        siempre que la fecha aún no haya llegado.
+      · Líder, RH o admin: pueden cancelar cualquier solicitud pendiente
+        en cualquier momento (anterior a la aprobación).
     """
     req = get_object_or_404(VacationRequest, pk=pk)
     user = request.user
     is_owner = req.employee_id == user.id
     is_priv = _is_leader(user) or _is_hr(user)
 
+    if req.status == VacationRequest.Status.APPROVED:
+        return JsonResponse({
+            'success': False,
+            'message': 'La solicitud ya fue aprobada y no puede cancelarse.',
+        }, status=400)
     if req.status in {VacationRequest.Status.CANCELLED, VacationRequest.Status.REJECTED}:
         return JsonResponse({'success': False, 'message': 'No se puede cancelar.'}, status=400)
 

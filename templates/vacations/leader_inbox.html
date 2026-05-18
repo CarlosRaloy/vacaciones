@@ -40,8 +40,8 @@
     border-radius: 20px;
     padding: 18px 20px;
     margin-bottom: 16px;
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
     box-shadow: 0 10px 32px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.30);
   }
   .inbox-header h2 {
@@ -58,14 +58,70 @@
     color: rgba(255,255,255,.80);
   }
   .inbox-header .meta b { color: rgba(255,255,255,.96); }
+  .inbox-title-row {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+  }
+
+  /* ───── Buscador glass ───── */
+  .inbox-search {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(0,0,0,.36);
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 999px;
+    padding: 8px 16px;
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 4px 12px rgba(0,0,0,.18);
+    min-width: 280px;
+    flex: 0 1 380px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .inbox-search:focus-within {
+    border-color: rgba(96,165,250,.65);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22),
+                0 0 0 3px rgba(96,165,250,.22),
+                0 6px 16px rgba(0,0,0,.20);
+  }
+  .inbox-search i.fa-search { color: rgba(255,255,255,.62); font-size: 13px; }
+  .inbox-search input {
+    flex: 1; min-width: 0;
+    background: transparent; border: 0; outline: 0;
+    color: rgba(255,255,255,.96);
+    font-size: 13.5px; font-family: inherit;
+    padding: 2px 0;
+  }
+  .inbox-search input::placeholder { color: rgba(255,255,255,.50); }
+  .inbox-search .search-clear {
+    background: rgba(255,255,255,.10);
+    border: 0; color: rgba(255,255,255,.70);
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: none;
+    align-items: center; justify-content: center;
+    cursor: pointer; font-size: 10px;
+    transition: background .15s ease;
+  }
+  .inbox-search.has-text .search-clear { display: inline-flex; }
+  .inbox-search .search-clear:hover { background: rgba(255,255,255,.22); color: #fff; }
+  .inbox-search .search-count {
+    font-size: 11.5px;
+    color: rgba(255,255,255,.62);
+    font-weight: 600;
+    white-space: nowrap;
+    padding-left: 4px;
+    border-left: 1px solid rgba(255,255,255,.16);
+    margin-left: 2px;
+  }
+  .inbox-table tbody tr.hidden-row { display: none; }
 
   .inbox-card {
     background: rgba(20,24,38,.34);
     border: 1px solid rgba(255,255,255,.20);
     border-radius: 20px;
     overflow: hidden;
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
     box-shadow: 0 14px 40px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.25);
   }
   .inbox-table {
@@ -179,7 +235,23 @@
 {% block content %}
 <div class="inbox-wrap">
   <div class="inbox-header">
-    <h2>Bandeja del Líder<small>Pendientes que requieren tu aprobación</small></h2>
+    <div class="inbox-title-row">
+      <h2>Bandeja del Líder<small>Pendientes que requieren tu aprobación</small></h2>
+      <form class="inbox-search {% if q %}has-text{% endif %}" id="inbox-search-form" method="get" role="search">
+        <i class="fa fa-search"></i>
+        <input type="search"
+               id="inbox-search-input"
+               name="q"
+               value="{{ q }}"
+               placeholder="Buscar por nombre, nómina, motivo…"
+               autocomplete="off"
+               aria-label="Buscar solicitudes">
+        <button type="button" class="search-clear" id="search-clear-btn" title="Limpiar búsqueda">
+          <i class="fa fa-times"></i>
+        </button>
+        <span class="search-count" id="search-count">0</span>
+      </form>
+    </div>
     <div class="meta">
       {% if is_admin %}
         <i class="fa fa-user-shield" style="color:#ef4444;"></i>
@@ -262,4 +334,78 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const input = document.getElementById('inbox-search-input');
+  const form = document.getElementById('inbox-search-form');
+  const clearBtn = document.getElementById('search-clear-btn');
+  const countEl = document.getElementById('search-count');
+  const tbody = document.querySelector('.inbox-table tbody');
+  if (!input || !tbody) return;
+
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const norm = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  for (const r of rows) {
+    r._search = norm(r.textContent.replace(/\s+/g, ' '));
+  }
+
+  function updateCount(visible) {
+    if (!countEl) return;
+    countEl.textContent = input.value
+      ? `${visible} / ${rows.length}`
+      : String(rows.length);
+  }
+
+  let raf = 0;
+  function applyFilter() {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const q = norm(input.value.trim());
+      form.classList.toggle('has-text', !!input.value);
+      if (!q) {
+        rows.forEach(r => r.classList.remove('hidden-row'));
+        updateCount(rows.length);
+        return;
+      }
+      const terms = q.split(/\s+/).filter(Boolean);
+      let visible = 0;
+      for (const r of rows) {
+        const hit = terms.every(t => r._search.includes(t));
+        r.classList.toggle('hidden-row', !hit);
+        if (hit) visible++;
+      }
+      updateCount(visible);
+    });
+  }
+
+  input.addEventListener('input', applyFilter);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== input
+        && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
+      e.preventDefault();
+      input.focus();
+      input.select();
+    }
+    if (e.key === 'Escape' && document.activeElement === input) {
+      input.value = '';
+      applyFilter();
+      input.blur();
+    }
+  });
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      applyFilter();
+      input.focus();
+    });
+  }
+
+  applyFilter();
+})();
+</script>
 {% endblock %}

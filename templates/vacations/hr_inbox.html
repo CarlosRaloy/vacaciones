@@ -43,8 +43,8 @@
     border-radius: 20px;
     padding: 18px 20px;
     margin-bottom: 16px;
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
     box-shadow: 0 10px 32px rgba(0,0,0,.20), inset 0 1px 0 rgba(255,255,255,.30);
   }
   .inbox-title {
@@ -60,6 +60,60 @@
     display: block; font-size: 11px; font-weight: 500; opacity: .72;
     text-transform: uppercase; letter-spacing: .08em; margin-top: 4px;
   }
+
+  /* ───── Buscador glass ───── */
+  .inbox-search {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(0,0,0,.36);
+    border: 1px solid rgba(255,255,255,.22);
+    border-radius: 999px;
+    padding: 8px 16px;
+    backdrop-filter: blur(12px) saturate(160%);
+    -webkit-backdrop-filter: blur(12px) saturate(160%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 4px 12px rgba(0,0,0,.18);
+    min-width: 280px;
+    flex: 0 1 380px;
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  .inbox-search:focus-within {
+    border-color: rgba(96,165,250,.65);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.22),
+                0 0 0 3px rgba(96,165,250,.22),
+                0 6px 16px rgba(0,0,0,.20);
+  }
+  .inbox-search i.fa-search { color: rgba(255,255,255,.62); font-size: 13px; }
+  .inbox-search input {
+    flex: 1; min-width: 0;
+    background: transparent; border: 0; outline: 0;
+    color: rgba(255,255,255,.96);
+    font-size: 13.5px;
+    font-family: inherit;
+    padding: 2px 0;
+  }
+  .inbox-search input::placeholder { color: rgba(255,255,255,.50); }
+  .inbox-search .search-clear {
+    background: rgba(255,255,255,.10);
+    border: 0; color: rgba(255,255,255,.70);
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    display: none;
+    align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 10px;
+    transition: background .15s ease;
+  }
+  .inbox-search.has-text .search-clear { display: inline-flex; }
+  .inbox-search .search-clear:hover { background: rgba(255,255,255,.22); color: #fff; }
+  .inbox-search .search-count {
+    font-size: 11.5px;
+    color: rgba(255,255,255,.62);
+    font-weight: 600;
+    white-space: nowrap;
+    padding-left: 4px;
+    border-left: 1px solid rgba(255,255,255,.16);
+    margin-left: 2px;
+  }
+  .inbox-table tbody tr.hidden-row { display: none; }
 
   /* Filtros tipo chips */
   .filter-chips {
@@ -109,8 +163,8 @@
     border: 1px solid rgba(255,255,255,.20);
     border-radius: 20px;
     overflow: hidden;
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
     box-shadow: 0 14px 40px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.25);
   }
   .inbox-table {
@@ -160,6 +214,32 @@
     color: #2c1810;
     font-weight: 700;
     text-shadow: 0 1px 0 rgba(255,255,255,.20);
+  }
+
+  /* Trail de auditoría: quién actuó sobre la solicitud */
+  .actor-trail {
+    margin-top: 6px;
+    display: flex; flex-direction: column; gap: 3px;
+    font-size: 11px;
+    line-height: 1.3;
+    color: rgba(255,255,255,.72);
+  }
+  .actor-trail > div {
+    display: flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  .actor-trail i {
+    width: 12px; text-align: center;
+    color: rgba(255,255,255,.55);
+    font-size: 10.5px;
+  }
+  .actor-trail b {
+    color: rgba(255,255,255,.92);
+    font-weight: 600;
+  }
+  .actor-trail .ts {
+    color: rgba(255,255,255,.48);
+    font-weight: 400;
   }
 
   .action-row { display: inline-flex; gap: 6px; white-space: nowrap; }
@@ -265,24 +345,39 @@
   <div class="inbox-header">
     <div class="inbox-title">
       <h2>Bandeja de RH<small>Todas las solicitudes</small></h2>
+      <form class="inbox-search {% if q %}has-text{% endif %}" id="inbox-search-form" method="get" role="search">
+        <input type="hidden" name="status" value="{{ status_filter }}">
+        <i class="fa fa-search"></i>
+        <input type="search"
+               id="inbox-search-input"
+               name="q"
+               value="{{ q }}"
+               placeholder="Buscar por nombre, nómina, motivo…"
+               autocomplete="off"
+               aria-label="Buscar solicitudes">
+        <button type="button" class="search-clear" id="search-clear-btn" title="Limpiar búsqueda">
+          <i class="fa fa-times"></i>
+        </button>
+        <span class="search-count" id="search-count">0</span>
+      </form>
     </div>
     <div class="filter-chips">
-      <a class="chip {% if not status_filter %}active{% endif %}" href="?">
+      <a class="chip {% if not status_filter %}active{% endif %}" href="?{% if q %}q={{ q }}{% endif %}">
         Todas <span class="n">{{ counts.ALL }}</span>
       </a>
-      <a class="chip {% if status_filter == STATUS.PENDING_LEADER %}active{% endif %}" href="?status={{ STATUS.PENDING_LEADER }}">
+      <a class="chip {% if status_filter == STATUS.PENDING_LEADER %}active{% endif %}" href="?status={{ STATUS.PENDING_LEADER }}{% if q %}&q={{ q }}{% endif %}">
         Pendiente líder <span class="n">{{ counts.PENDING_LEADER }}</span>
       </a>
-      <a class="chip {% if status_filter == STATUS.PENDING_HR %}active{% endif %}" href="?status={{ STATUS.PENDING_HR }}">
+      <a class="chip {% if status_filter == STATUS.PENDING_HR %}active{% endif %}" href="?status={{ STATUS.PENDING_HR }}{% if q %}&q={{ q }}{% endif %}">
         Pendiente RH <span class="n">{{ counts.PENDING_HR }}</span>
       </a>
-      <a class="chip {% if status_filter == STATUS.APPROVED %}active{% endif %}" href="?status={{ STATUS.APPROVED }}">
+      <a class="chip {% if status_filter == STATUS.APPROVED %}active{% endif %}" href="?status={{ STATUS.APPROVED }}{% if q %}&q={{ q }}{% endif %}">
         Aprobadas <span class="n">{{ counts.APPROVED }}</span>
       </a>
-      <a class="chip {% if status_filter == STATUS.REJECTED %}active{% endif %}" href="?status={{ STATUS.REJECTED }}">
+      <a class="chip {% if status_filter == STATUS.REJECTED %}active{% endif %}" href="?status={{ STATUS.REJECTED }}{% if q %}&q={{ q }}{% endif %}">
         Rechazadas <span class="n">{{ counts.REJECTED }}</span>
       </a>
-      <a class="chip {% if status_filter == STATUS.CANCELLED %}active{% endif %}" href="?status={{ STATUS.CANCELLED }}">
+      <a class="chip {% if status_filter == STATUS.CANCELLED %}active{% endif %}" href="?status={{ STATUS.CANCELLED }}{% if q %}&q={{ q }}{% endif %}">
         Canceladas <span class="n">{{ counts.CANCELLED }}</span>
       </a>
     </div>
@@ -334,6 +429,31 @@
           </td>
           <td data-label="Estado">
             <span class="pill {{ r.status }}">{{ r.get_status_display }}</span>
+            {% if r.leader_acted_by or r.hr_acted_by or r.cancelled_by %}
+            <div class="actor-trail">
+              {% if r.leader_acted_by %}
+                <div title="Acción del líder">
+                  <i class="fa-solid fa-user-gear"></i>
+                  <b>{{ r.leader_acted_by.get_full_name|default:r.leader_acted_by.username }}</b>
+                  <span class="ts">· {{ r.leader_acted_at|date:"d M Y H:i" }}</span>
+                </div>
+              {% endif %}
+              {% if r.hr_acted_by %}
+                <div title="Acción de RH">
+                  <i class="fa-solid fa-user-shield"></i>
+                  <b>{{ r.hr_acted_by.get_full_name|default:r.hr_acted_by.username }}</b>
+                  <span class="ts">· {{ r.hr_acted_at|date:"d M Y H:i" }}</span>
+                </div>
+              {% endif %}
+              {% if r.cancelled_by %}
+                <div title="Cancelación">
+                  <i class="fa-solid fa-ban"></i>
+                  <b>{{ r.cancelled_by.get_full_name|default:r.cancelled_by.username }}</b>
+                  <span class="ts">· {{ r.cancelled_at|date:"d M Y H:i" }}</span>
+                </div>
+              {% endif %}
+            </div>
+            {% endif %}
           </td>
           <td data-label="Origen">
             <span style="font-size:12px;color:rgba(255,255,255,.78);">{{ r.get_origin_display }}</span>
@@ -384,4 +504,83 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const input = document.getElementById('inbox-search-input');
+  const form = document.getElementById('inbox-search-form');
+  const clearBtn = document.getElementById('search-clear-btn');
+  const countEl = document.getElementById('search-count');
+  const tbody = document.querySelector('.inbox-table tbody');
+  if (!input || !tbody) return;
+
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  // Pre-cómputo del texto searchable (sin acentos, en minúsculas) — una pasada O(N).
+  const norm = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  for (const r of rows) {
+    r._search = norm(r.textContent.replace(/\s+/g, ' '));
+  }
+
+  function updateCount(visible) {
+    if (!countEl) return;
+    countEl.textContent = input.value
+      ? `${visible} / ${rows.length}`
+      : String(rows.length);
+  }
+
+  let raf = 0;
+  function applyFilter() {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const q = norm(input.value.trim());
+      form.classList.toggle('has-text', !!input.value);
+      if (!q) {
+        rows.forEach(r => r.classList.remove('hidden-row'));
+        updateCount(rows.length);
+        return;
+      }
+      // Soporta múltiples palabras: todas deben estar presentes (AND).
+      const terms = q.split(/\s+/).filter(Boolean);
+      let visible = 0;
+      for (const r of rows) {
+        const hit = terms.every(t => r._search.includes(t));
+        r.classList.toggle('hidden-row', !hit);
+        if (hit) visible++;
+      }
+      updateCount(visible);
+    });
+  }
+
+  input.addEventListener('input', applyFilter);
+
+  // Atajo "/" enfoca el buscador (estilo Slack/Linear).
+  document.addEventListener('keydown', (e) => {
+    if (e.key === '/' && document.activeElement !== input
+        && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
+      e.preventDefault();
+      input.focus();
+      input.select();
+    }
+    if (e.key === 'Escape' && document.activeElement === input) {
+      input.value = '';
+      applyFilter();
+      input.blur();
+    }
+  });
+
+  // Limpiar
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      applyFilter();
+      input.focus();
+    });
+  }
+
+  // Render inicial
+  applyFilter();
+})();
+</script>
 {% endblock %}

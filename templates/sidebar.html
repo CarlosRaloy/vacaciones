@@ -39,21 +39,16 @@
     .sb-role-pill {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 12px;
-      border-radius: 999px;
-      font-size: 11px;
+      gap: 8px;
+      font-size: 12px;
       font-weight: 600;
-      color: #fff;
-      background: rgba(0,0,0,.45);
-      border: 1px solid rgba(255,255,255,.12);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      box-shadow:
-        inset 0 1px 0 rgba(255,255,255,.10),
-        0 2px 6px rgba(0,0,0,.25);
+      color: rgba(255,255,255,.88);
+      white-space: nowrap;
       margin-bottom: 10px;
+      line-height: 1.4;
+      letter-spacing: .02em;
     }
+    .sb-role-pill i { font-size: 12px; }
     /* Color solo en el icono según el rol */
     .sb-role-blocked i { color: #ef4444; }
     .sb-role-worker  i { color: #94a3b8; }
@@ -93,6 +88,76 @@
       color: #fff;
       font-weight: 600;
     }
+
+    /* ─────── Barra de progreso del ciclo de vacaciones ─────── */
+    .sb-cycle {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255,255,255,.10);
+    }
+    .sb-cycle-head {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.62);
+      margin-bottom: 6px;
+    }
+    .sb-cycle-head .pct {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0;
+      text-transform: none;
+      color: #fff;
+    }
+    .sb-cycle-track {
+      position: relative;
+      height: 8px;
+      background: rgba(255,255,255,.10);
+      border-radius: 999px;
+      overflow: hidden;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,.30);
+    }
+    .sb-cycle-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width .4s ease;
+      box-shadow: 0 0 8px currentColor;
+      background: linear-gradient(90deg, currentColor, currentColor);
+    }
+    .sb-cycle.level-calm     .sb-cycle-fill,
+    .sb-cycle.level-calm     .pct { color: #22c55e; }
+    .sb-cycle.level-normal   .sb-cycle-fill,
+    .sb-cycle.level-normal   .pct { color: #38bdf8; }
+    .sb-cycle.level-warning  .sb-cycle-fill,
+    .sb-cycle.level-warning  .pct { color: #f59e0b; }
+    .sb-cycle.level-critical .sb-cycle-fill,
+    .sb-cycle.level-critical .pct { color: #ef4444; animation: cyclePulse 1.8s ease-in-out infinite; }
+    @keyframes cyclePulse {
+      0%,100% { box-shadow: 0 0 8px currentColor; }
+      50%     { box-shadow: 0 0 16px currentColor; }
+    }
+    .sb-cycle-foot {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 11px;
+      color: rgba(255,255,255,.62);
+      margin-top: 6px;
+      gap: 8px;
+    }
+    .sb-cycle-foot b { color: rgba(255,255,255,.92); font-weight: 600; }
+    .sb-cycle-warn {
+      display: flex; align-items: center; gap: 6px;
+      margin-top: 8px;
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 11px;
+      line-height: 1.35;
+      background: rgba(239,68,68,.18);
+      border: 1px solid rgba(239,68,68,.42);
+      color: #fecaca;
+    }
+    .sb-cycle-warn i { color: #ef4444; }
 </style>
 
 <!-- begin #sidebar -->
@@ -175,6 +240,31 @@
                         </div>
                         {% endif %}
                         {% endwith %}
+
+                        {# Barra de progreso del ciclo de vacaciones — viene del context processor #}
+                        {% if cycle_progress is not None and cycle_end_date %}
+                        <div class="sb-cycle level-{{ cycle_level }}" title="Progreso del ciclo de vacaciones">
+                          <div class="sb-cycle-head">
+                            <span><i class="fa-solid fa-hourglass-half"></i> Ciclo de vacaciones</span>
+                            <span class="pct">{{ cycle_progress }}%</span>
+                          </div>
+                          <div class="sb-cycle-track">
+                            <div class="sb-cycle-fill" style="width: {{ cycle_progress }}%;"></div>
+                          </div>
+                          <div class="sb-cycle-foot">
+                            <span><b>{{ cycle_days_remaining }}</b> día{{ cycle_days_remaining|pluralize:"s" }} restante{{ cycle_days_remaining|pluralize:"s" }}</span>
+                            <span title="Reinicia el {{ cycle_end_date|date:'d/m/Y' }}">
+                              <i class="fa-regular fa-calendar"></i> {{ cycle_end_date|date:"d M Y" }}
+                            </span>
+                          </div>
+                          {% if cycle_level == 'critical' %}
+                          <div class="sb-cycle-warn">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <span>Quedan pocos días. Los no usados se pierden al reiniciar el ciclo.</span>
+                          </div>
+                          {% endif %}
+                        </div>
+                        {% endif %}
                     </div>
                 </a>
             </li>
@@ -192,31 +282,16 @@
             <li class="nav-header">Navegación</li>
 
 
-            <!-- Home (visible para todos los logueados) -->
+            <!-- Home / Dashboard (admin, RH, auditor, líder y superuser) -->
+            {% if request.user.profile.is_admin or request.user.profile.is_hr or request.user.profile.is_auditor or request.user.profile.is_leader or request.user.is_superuser %}
             <li>
                 <a href="{% url 'users:ping' %}">
                     <i class="fa-solid fa-house" style="color: #74C0FC;"></i>
                     <span>Home</span>
                 </a>
             </li>
-            <!-- End Home -->
-
-            <!-- Panel TWO (solo admin) -->
-            {% if request.user.profile.is_admin or request.user.is_superuser %}
-            <li class="has-sub">
-                <a href="javascript:;">
-                    <b class="caret"></b>
-                    <i class="fa-solid fa-users" style="color: #66ffed;"></i>
-                    <span>Usuarios</span>
-                </a>
-                <ul class="sub-menu">
-                    <li><a href="{% url 'users:panel' %}"><i class="fa-regular fa-address-card" style="color: #75a8ff;"></i> Panel Admin</a></li>
-                    <li><a href="{% url 'users:positions' %}"><i class="fa-solid fa-briefcase" style="color: #ffcd56;"></i> Puestos</a></li>
-                    <li><a href="{% url 'users:areas' %}"><i class="fa-solid fa-sitemap" style="color: #ff9500;"></i> Áreas</a></li>
-                </ul>
-            </li>
             {% endif %}
-            <!-- End Panel-->
+            <!-- End Home -->
 
             <!-- Vacaciones -->
             <li class="has-sub">
@@ -236,6 +311,23 @@
                 </ul>
             </li>
             <!-- End Vacaciones -->
+
+            <!-- Panel (admin y RH) -->
+            {% if request.user.profile.is_admin or request.user.profile.is_hr or request.user.is_superuser %}
+            <li class="has-sub">
+                <a href="javascript:;">
+                    <b class="caret"></b>
+                    <i class="fa-solid fa-users" style="color: #66ffed;"></i>
+                    <span>Usuarios</span>
+                </a>
+                <ul class="sub-menu">
+                    <li><a href="{% url 'users:panel' %}"><i class="fa-regular fa-address-card" style="color: #75a8ff;"></i> Panel Admin</a></li>
+                    <li><a href="{% url 'users:positions' %}"><i class="fa-solid fa-briefcase" style="color: #ffcd56;"></i> Puestos</a></li>
+                    <li><a href="{% url 'users:areas' %}"><i class="fa-solid fa-sitemap" style="color: #ff9500;"></i> Áreas</a></li>
+                </ul>
+            </li>
+            {% endif %}
+            <!-- End Panel-->
 
             <!-- End Panel Config -->
 

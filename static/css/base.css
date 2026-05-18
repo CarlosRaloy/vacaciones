@@ -1,28 +1,197 @@
-/* scrollbar */
+/* ────────────────────────────────────────────────────────
+   Scrollbar
+   ──────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
-
 ::-webkit-scrollbar-track {
-  -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
-  -webkit-border-radius: 10px;
+  background: transparent;
   border-radius: 10px;
 }
-
 ::-webkit-scrollbar-thumb {
-  -webkit-border-radius: 10px;
+  background: rgba(15, 23, 42, .22);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.3);
-  -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.5);
+  transition: background .2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, .38);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, .25) transparent;
 }
 
-::-webkit-scrollbar-thumb:window-inactive {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* Input Select personalizado */
+/* ────────────────────────────────────────────────────────
+   Select option personalizado
+   ──────────────────────────────────────────────────────── */
 select.personal-select option {
-    background: #555555;
-    color: #dddddd;             /* texto blanco */
+  background: #555555;
+  color: #dddddd;
 }
+
+/* ════════════════════════════════════════════════════════
+   ░ MAC OS LOOK — Paneles blancos globales
+   ════════════════════════════════════════════════════════ */
+body {
+  background: #f5f6f8;
+  font-family: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont,
+               'Segoe UI', Roboto, sans-serif;
+}
+
+#content {
+  background: transparent;
+}
+
+/* ── Page header (el H1 superior) ── */
+.page-header {
+  border-bottom: 0 !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+  padding: 6px 0 18px !important;
+  margin: 0 0 18px !important;
+  letter-spacing: -.015em;
+}
+.page-header small {
+  color: #64748b !important;
+  font-weight: 500;
+  font-size: 13px;
+  margin-left: 8px;
+  letter-spacing: 0;
+}
+
+/* ── Panel mac-style (afecta a panel-inverse, default, etc).
+   Sin !important para que las páginas glass puedan transparentar el panel
+   con un override local (gana porque carga después en el cascade). ── */
+.panel,
+.panel.panel-inverse,
+.panel.panel-default {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, .06);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, .04),
+    0 18px 50px -20px rgba(15, 23, 42, .12);
+  overflow: hidden;
+}
+
+.panel > .panel-heading,
+.panel.panel-inverse > .panel-heading,
+.panel.panel-default > .panel-heading {
+  background: #ffffff;
+  border-bottom: 1px solid rgba(15, 23, 42, .06);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #0f172a;
+}
+
+.panel > .panel-heading .panel-title,
+.panel.panel-inverse > .panel-heading .panel-title,
+.panel.panel-default > .panel-heading .panel-title {
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -.005em;
+  margin: 0;
+  line-height: 1.3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Botones del panel header → estilo "traffic light" estilo Mac OS */
+.panel .panel-heading-btn {
+  display: flex !important;
+  flex-direction: row-reverse;   /* invierte para que quede danger→warning→success→default */
+  gap: 7px !important;
+  align-items: center;
+}
+.panel .panel-heading-btn > a.btn,
+.panel .panel-heading-btn > .btn {
+  width: 13px !important;
+  height: 13px !important;
+  min-width: 13px !important;
+  border-radius: 50% !important;
+  border: 0 !important;
+  box-shadow:
+    inset 0 0 0 .5px rgba(0, 0, 0, .12),
+    0 1px 2px rgba(0, 0, 0, .08) !important;
+  padding: 0 !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  transition: filter .15s ease, transform .15s ease;
+  position: relative;
+}
+.panel .panel-heading-btn > .btn i {
+  display: none !important;
+}
+.panel .panel-heading-btn > .btn-danger  { background: #ff5f57 !important; }
+.panel .panel-heading-btn > .btn-warning { background: #febc2e !important; }
+.panel .panel-heading-btn > .btn-success { background: #28c840 !important; }
+.panel .panel-heading-btn > .btn-default { background: #d1d5db !important; }
+.panel .panel-heading-btn > .btn:hover {
+  filter: brightness(1.08);
+  transform: scale(1.08);
+}
+
+.panel > .panel-body,
+.panel.panel-inverse > .panel-body,
+.panel.panel-default > .panel-body {
+  background: #ffffff;
+  color: #0f172a;
+  padding: 22px;
+}
+
+/* ── Inputs / forms con look mac ── */
+.form-control {
+  border-radius: 10px !important;
+  border: 1px solid rgba(15, 23, 42, .12) !important;
+  background: #ffffff !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.form-control:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .18) !important;
+  outline: 0 !important;
+}
+
+/* ── Botones generales con un toque más limpio ── */
+.btn {
+  border-radius: 10px;
+  font-weight: 600;
+  letter-spacing: -.005em;
+}
+.btn-primary { box-shadow: 0 2px 6px rgba(59, 130, 246, .25); }
+
+/* ── Tarjetas Bootstrap genéricas ── */
+.card {
+  border-radius: 14px !important;
+  border: 1px solid rgba(15, 23, 42, .06) !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+}
+
+/* ── DataTables: encabezados blancos ── */
+table.dataTable thead th {
+  background: #f8fafc !important;
+  color: #475569 !important;
+  border-bottom: 1px solid rgba(15, 23, 42, .06) !important;
+}
+.dataTables_wrapper .dataTables_filter input,
+.dataTables_wrapper .dataTables_length select {
+  border-radius: 8px !important;
+  border: 1px solid rgba(15, 23, 42, .12) !important;
+  padding: 4px 10px !important;
+}
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  border-radius: 8px !important;
+}
+
+/* ── SweetAlert con curvas suaves ── */
+.swal2-popup { border-radius: 18px !important; }

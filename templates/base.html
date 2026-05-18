@@ -3,14 +3,12 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  {% block head_content %}{% endblock %}
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="description" content="Raloy" />
   <meta name="author" content="Raloy" />
   <link rel="icon" type="image/png" href="{% static 'img/icon.png' %}">
-  <link rel="stylesheet" href="{% static 'css/base.css' %}">
 
-  <!-- ================== ESTILOS BASE ================== -->
+  <!-- ================== ESTILOS DEL TEMA (cargar primero) ================== -->
   {% if request.user.profile.theme == 'default' %}
     <link href="{% static 'assets/css/default/app.min.css' %}" rel="stylesheet" />
   {% elif request.user.profile.theme == 'apple' %}
@@ -47,6 +45,12 @@
 
   <!-- ================== ESTILOS DATATABLES ================== -->
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap4.min.css" />
+
+  <!-- ================== ESTILOS PROPIOS (después del tema para ganarle) ================== -->
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+
+  <!-- ================== ESTILOS POR PÁGINA (al final, máxima prioridad) ================== -->
+  {% block head_content %}{% endblock %}
 </head>
 
 <body>
