@@ -171,7 +171,8 @@ def calendar_view(request):
 def events_json(request):
     scope = request.GET.get('scope', 'mine')
     qs = VacationRequest.objects.select_related(
-        'employee', 'leader_acted_by', 'hr_acted_by', 'cancelled_by', 'captured_by',
+        'employee', 'employee__profile',
+        'leader_acted_by', 'hr_acted_by', 'cancelled_by', 'captured_by',
     )
 
     # Quién ve qué cuando scope=all:
@@ -242,6 +243,7 @@ def events_json(request):
                 'late_registration': r.late_registration,
                 'late_note': r.late_note,
                 'requested_to_leader_id': r.requested_to_leader_id,
+                'employee_boss_id': getattr(getattr(r.employee, 'profile', None), 'boss_id', None),
                 # Auditoría: quién aprobó / cancelló y cuándo
                 'leader_acted_by': (
                     r.leader_acted_by.get_full_name() or r.leader_acted_by.username
@@ -422,8 +424,14 @@ def leader_inbox(request):
         status=VacationRequest.Status.PENDING_LEADER,
     ).select_related('employee', 'employee__profile', 'requested_to_leader')
     # El líder solo ve solicitudes asignadas a él; admin ve todas.
+    # Aceptar también las solicitudes cuyo trabajador tiene a este líder como
+    # jefe actual (cubre el caso en que la solicitud se creó antes de asignar
+    # el jefe, dejando requested_to_leader en NULL o en un líder anterior).
     if not _is_admin(request.user):
-        qs = qs.filter(requested_to_leader=request.user)
+        qs = qs.filter(
+            Q(requested_to_leader=request.user)
+            | Q(employee__profile__boss=request.user)
+        )
     qs = _search_filter(qs, q)
     pending = qs.order_by('date')
     return render(request, 'vacations/leader_inbox.html', {
@@ -487,9 +495,20 @@ def _next_redirect(request, default: str):
 def leader_act(request, pk):
     if not _is_leader(request.user):
         return HttpResponseForbidden()
-    req = get_object_or_404(VacationRequest, pk=pk)
-    # Un líder solo puede actuar sobre solicitudes asignadas a él; admin bypass.
-    if not _is_admin(request.user) and req.requested_to_leader_id != request.user.id:
+    req = get_object_or_404(
+        VacationRequest.objects.select_related('employee__profile'),
+        pk=pk,
+    )
+    # Un líder puede actuar si:
+    #   · es admin (bypass total), o
+    #   · la solicitud le fue asignada (requested_to_leader), o
+    #   · es el jefe actual del trabajador (cubre cambios de jefe posteriores
+    #     a la captura, o solicitudes creadas sin jefe).
+    emp_profile = getattr(req.employee, 'profile', None)
+    emp_boss_id = getattr(emp_profile, 'boss_id', None)
+    is_assigned = req.requested_to_leader_id == request.user.id
+    is_current_boss = emp_boss_id == request.user.id
+    if not _is_admin(request.user) and not (is_assigned or is_current_boss):
         messages.error(request, 'Esta solicitud no está asignada a ti.')
         return _next_redirect(request, 'leader_inbox')
     action = request.POST.get('action')

@@ -2077,9 +2077,14 @@ function openInspector(ev) {
   // Una vez aprobada (o rechazada / cancelada), queda en firme.
   const isPending = p.status === 'PENDING_LEADER' || p.status === 'PENDING_HR';
   const canCancel = isPending && (p.is_mine || IS_PRIV);
-  // Aprobar como líder: status PENDING_LEADER y (admin O líder asignado a esta solicitud)
+  // Aprobar como líder: status PENDING_LEADER y (admin O líder asignado O
+  // jefe actual del trabajador). El último caso cubre cuando la solicitud se
+  // capturó antes de que se le asignara jefe al trabajador y aún tiene
+  // requested_to_leader=NULL, o cuando se cambió el jefe después de capturar.
+  const isAssignedLeader = p.requested_to_leader_id === CURRENT_USER_ID;
+  const isCurrentBoss = p.employee_boss_id === CURRENT_USER_ID;
   const canApproveLeader = p.status === 'PENDING_LEADER'
-    && (IS_ADMIN_GLOBAL || (IS_LEADER_GLOBAL && p.requested_to_leader_id === CURRENT_USER_ID));
+    && (IS_ADMIN_GLOBAL || (IS_LEADER_GLOBAL && (isAssignedLeader || isCurrentBoss)));
   // Aprobar como RH: status PENDING_HR y RH/admin
   const canApproveHR = p.status === 'PENDING_HR' && IS_HR_GLOBAL;
   const canApprove = canApproveLeader || canApproveHR;

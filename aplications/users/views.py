@@ -170,6 +170,7 @@ VALID_LEVELS = {0, 1, 2, 3, 4, 5}
 
 def _apply_profile_fields(profile, post):
     """Actualiza el Profile desde POST (nivel, organización, jefe)."""
+    previous_boss_id = profile.boss_id  # para detectar cambio de jefe al final
     try:
         level = int(post.get('level') or 1)
     except ValueError:
@@ -226,6 +227,16 @@ def _apply_profile_fields(profile, post):
             profile.boss_name = None
 
     profile.save()
+
+    # Si el jefe inmediato cambió, las solicitudes que estaban "Pendiente de
+    # líder" siguen apuntando al jefe viejo (o a None si no había). Reasigna
+    # esas solicitudes al jefe actual para que el nuevo líder pueda aprobarlas
+    # desde su bandeja / calendario.
+    if profile.boss_id != previous_boss_id:
+        VacationRequest.objects.filter(
+            employee_id=profile.user_id,
+            status=VacationRequest.Status.PENDING_LEADER,
+        ).update(requested_to_leader=profile.boss)
 
 
 @login_required
